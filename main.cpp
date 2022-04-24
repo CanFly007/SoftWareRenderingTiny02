@@ -5,12 +5,48 @@ const TGAColor red = TGAColor(255, 0, 0, 255);
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
-	for (int x = x0; x <= x1; x++)//画必要步：直线按照每个横坐标走一步
+	//比如(80,200)和(70,100)这段特殊点
+	//特殊1：x方向上是减小的而不是增大的
+	//特殊2：Y幅度更大，应该按照Y轴每步走
+	bool yStep = false;
+	if (abs(x0 - x1) < abs(y0 - y1))
 	{
-		//当前的x走到的位置，在直线中的比例
-		float t = (x - x0) / (float)(x1 - x0);//除以float而不是int
-		int y = y0 + t * (y1 - y0);//根据百分比t，此时y同时在哪里
-		image.set(x, y, color);
+		yStep = true;
+	}
+	if (yStep)
+	{
+		if (y0 > y1)//y1小，从y1到y0
+		{
+			for (int y = y1; y <= y0; y++)
+			{
+				float t = (y - y1) / (float)(y0 - y1);
+				int x = x1 + t * (x0 - x1);
+				image.set(x, y, color);
+			}
+		}
+		else
+		{
+			for (int y = y0; y <= y1; y++)
+			{
+				float t = (y - y0) / (float)(y1 - y0);
+				int x = x0 + t * (x1 - x0);
+				image.set(x, y, color);
+			}
+		}
+	}
+	else
+	{
+		if (x0 > x1)
+		{
+			std::swap(x0, x1);
+			std::swap(y0, y1);
+			for (int x = x0; x < x1; x++)
+			{
+				float t = (x - x0) / (float)(x1 - x0);
+				int y = y0 + t * (y1 - y0);
+				image.set(x, y, color);
+			}
+		}
 	}
 }
 
