@@ -17,21 +17,15 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 	{
 		if (y0 > y1)//y1小，从y1到y0
 		{
-			for (int y = y1; y <= y0; y++)
-			{
-				float t = (y - y1) / (float)(y0 - y1);
-				int x = x1 + t * (x0 - x1);
-				image.set(x, y, color);
-			}
+			//交换两个点，保持小的在左侧
+			std::swap(x0, x1);
+			std::swap(y0, y1);
 		}
-		else
+		for (int y = y0; y <= y1; y++)
 		{
-			for (int y = y0; y <= y1; y++)
-			{
-				float t = (y - y0) / (float)(y1 - y0);
-				int x = x0 + t * (x1 - x0);
-				image.set(x, y, color);
-			}
+			float t = (y - y0) / (float)(y1 - y0);
+			int x = x0 + t * (x1 - x0);
+			image.set(x, y, color);
 		}
 	}
 	else
@@ -40,12 +34,12 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 		{
 			std::swap(x0, x1);
 			std::swap(y0, y1);
-			for (int x = x0; x < x1; x++)
-			{
-				float t = (x - x0) / (float)(x1 - x0);
-				int y = y0 + t * (y1 - y0);
-				image.set(x, y, color);
-			}
+		}
+		for (int x = x0; x < x1; x++)
+		{
+			float t = (x - x0) / (float)(x1 - x0);
+			int y = y0 + t * (y1 - y0);
+			image.set(x, y, color);
 		}
 	}
 }
