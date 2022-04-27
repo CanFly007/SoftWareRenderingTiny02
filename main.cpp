@@ -2,12 +2,6 @@
 #include "model.h"
 #include "geometry.h"
 
-//测试model.cpp中的iss>>返回什么
-//#include <iostream>
-//#include <string>
-//#include <fstream>
-//#include <sstream>
-
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 Model* model = NULL;
@@ -57,19 +51,6 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 
 int main(int argc, char** argv)
 {
-	//测试model.cpp中的iss>>返回什么
-	//std::string os("f 24/1/24 25/2/25 26/3/26");
-	//char trash;
-	//int itrash, idx;
-	//std::istringstream iss(os.c_str());
-	//iss >> trash;
-	//std::cout << trash << std::endl;
-	//iss >> idx >> trash>>itrash>>trash;
-	//std::cout << idx << std::endl;
-	//std::cout << trash << std::endl;
-	//std::cout << itrash << std::endl;
-	//return 1;
-
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
