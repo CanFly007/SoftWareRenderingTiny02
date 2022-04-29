@@ -61,9 +61,62 @@ void triangle(Vec2i a, Vec2i b, Vec2i c, TGAImage& image, TGAColor color)
 	if (a.y > c.y) std::swap(a, c);
 	if (b.y > c.y) std::swap(b, c);
 
-	line(a.x, a.y, b.x, b.y, image, green);
-	line(b.x, b.y, c.x, c.y, image, green);
-	line(c.x, c.y, a.x, a.y, image, red);
+	//a点在最下面，中间是b点，c点在最上面
+	//三角形从b处水平切分成上下两部分，因为ab和bc斜率不同，画x的起点要分两次算
+	//从y轴底开始画（可以在草稿本上画个三角形看下）、水平一行一行画
+	for (int y = a.y; y <= c.y; y++)
+	{
+		bool isUpperTriangle = false;
+		if (y >= b.y)//大于大于，防止a点和b点Y相等情况。此时只算上部分即可
+			isUpperTriangle = true;
+		//b点在ac边的左侧，每行的x横扫从b这边开始。b点在ac边右侧，x横扫从ac边开始
+		//因为a是最低点，判断b在a的左右即可。如果a和b的x相同，要判断c的x位置决定三角形样式
+		bool isBLeft = true;
+		if (b.x < a.x)
+			isBLeft = true;
+		else if (b.x == a.x)
+		{
+			if (c.x > b.x)
+				isBLeft = true;
+			else
+				isBLeft = false;
+		}
+		else
+			isBLeft = false;
+
+		if (!isUpperTriangle)
+		{
+			float t2 = (float)(y - a.y) / (c.y - a.y);//ac边比例
+			int x2 = a.x + (c.x - a.x) * t2;
+			float t0 = (float)(y - a.y) / (b.y - a.y);//ab边比例
+			int x0 = a.x + (b.x - a.x) * t0;
+			if (isBLeft)
+			{
+				//b点在左边，从x0到x2
+				for (int x = x0; x <= x2; x++)
+					image.set(x, y, white);
+			}
+			else
+			{
+				for (int x = x2; x <= x0; x++)
+					image.set(x, y, white);
+			}
+		}
+		else
+		{
+			float t2 = (float)(y - a.y) / (c.y - a.y);//ac边比例
+			int x2 = a.x + (c.x - a.x) * t2;
+			//bc边比例
+			float t1 = (float)(y - b.y) / (c.y - b.y);
+			int x1 = b.x + t1 * (c.x - b.x);
+			if (isBLeft)
+				for (int x = x1; x <= x2; x++)
+					image.set(x, y, white);
+			else
+				for (int x = x2; x <= x1; x++)
+					image.set(x, y, white);
+		}
+	}
 }
 
 int main(int argc, char** argv)
