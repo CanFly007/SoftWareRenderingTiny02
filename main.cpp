@@ -58,11 +58,26 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 	Vec3f A = trianglePtr[0];
 	Vec3f B = trianglePtr[1];
 	Vec3f C = trianglePtr[2];
-	//叉积的模表示两个向量的所围成的平行四边形
-	float areaABC = ((B - A) ^ (C - A)).norm() * 0.5; //ABC ABP APC PBC都是按点P在三角形内顺时针顺序组合的，如果点P在三角形外，叉积结果就会有正负之分
-	float areaABP = ((B - A) ^ (P - A)).norm() * 0.5;
-	float areaAPC = ((P - A) ^ (C - A)).norm() * 0.5;
-	float areaPBC = ((B - P) ^ (C - P)).norm() * 0.5;
+
+	Vec3f crossABC = (B - A) ^ (C - A); //ABC ABP APC PBC都是按点P在三角形内顺时针顺序组合的
+	Vec3f crossABP = (B - A) ^ (P - A);
+	Vec3f crossAPC = (P - A) ^ (C - A);
+	Vec3f crossPBC = (B - P) ^ (C - P);
+
+	//叉积的方向，如果点P在三角形外，叉积结果就会有正负之分
+	//新学到方法，用点积判断方向,同侧点积为正
+	float outsideAB = crossABC * crossABP;//如果点积为负数，表示ABP是逆时针的，P在AB边外侧
+	float outsideAC = crossABC * crossAPC;
+	float outsideBC = crossABC * crossPBC;
+	if (outsideAB < 0 || outsideAC < 0 || outsideBC < 0)
+		return Vec3f(-1, -1, -1);//满足其中一个，则不在三角形内，不用下面计算了，也可以在下面uvw时候加负号,AB边外则对着w权重为负数
+
+	//叉积的模表示两个向量的所围成的平行四边形面积，用来计算重心坐标
+	float areaABC = crossABC.norm() * 0.5; //如果点P在三角形外，叉积结果就会有正负之分
+	float areaABP = crossABP.norm() * 0.5;
+	float areaAPC = crossAPC.norm() * 0.5;
+	float areaPBC = crossPBC.norm() * 0.5;
+
 
 	float u = areaPBC / areaABC;
 	float v = areaAPC / areaABC;
