@@ -118,55 +118,6 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 	}
 }
 
-//使用逐行填充法(image.set)画三角形
-//画三角形，三个顶点ABC、依次画AB、BC、CA三条line
-//像素坐标，所以是Vec2i int值
-void triangle(Vec2i a, Vec2i b, Vec2i c, TGAImage& image, TGAColor color)
-{
-	//按照y坐标排序，保持a.y < b.y < c.y 冒泡排序法
-	if (a.y > b.y) std::swap(a, b);
-	if (a.y > c.y) std::swap(a, c);
-	if (b.y > c.y) std::swap(b, c);
-
-	//a点在最下面，中间是b点，c点在最上面
-	//三角形从b处水平切分成上下两部分，因为ab和bc斜率不同，画x的起点要分两次算
-	//从y轴底开始画（可以在草稿本上画个三角形看下）、水平一行一行画
-	for (int y = a.y; y <= c.y; y++)
-	{
-		bool isUpperTriangle = false;
-		if (y >= b.y)//大于大于，防止a点和b点Y相等情况。此时只算上部分即可
-			isUpperTriangle = true;
-		//b点在ac边的左侧，每行的x横扫从b这边开始。b点在ac边右侧，x横扫从ac边开始
-		//因为a是最低点，判断b在a的左右即可。如果a和b的x相同，要判断c的x位置决定三角形样式
-		bool isBLeft = b.x == a.x ? (b.x < c.x) : (b.x < a.x);
-
-		float t2 = (float)(y - a.y) / (c.y - a.y);//ac边比例
-		int x2 = a.x + (c.x - a.x) * t2;//已知y，ac边上x对应的值
-		//是下三角形还是上三角形，选择ab边还是bc边上的x开始
-		//重点是计算出x1值
-		float t1;
-		int x1;
-		if (!isUpperTriangle)
-		{
-			t1 = (float)(y - a.y) / (b.y - a.y);//ab边比例
-			x1 = a.x + t1 * (b.x - a.x);
-		}
-		else
-		{
-			t1 = (float)(y - b.y) / (c.y - b.y);//bc边比例
-			x1 = b.x + t1 * (c.x - b.x);
-		}
-
-		//x1算出来了，判断是从x1->x2，还是从x2->x1，逐行画
-		if (isBLeft)//b点在左边，从x1到x2
-			for (int x = x1; x < x2; x++)//从ab或bc边开始
-				image.set(x, y, white);
-		else
-			for (int x = x2; x < x1; x++)//从ac边开始
-				image.set(x, y, white);
-	}
-}
-
 int main(int argc, char** argv)
 {
 	//if (2 == argc)
