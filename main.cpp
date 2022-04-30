@@ -113,9 +113,16 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
 				continue;//这个像素的重心坐标小于0，说明这个像素在三角形外，不画
 
-			image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));
+			image.set(i, j, color);
+			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
 		}
 	}
+}
+
+//.obj文件中定义的顶点坐标[-1,1]，转换到屏幕坐标[0,width]和[0,height]，z值不变，仍然是[-1,1]区间
+Vec3f World2Screen(Vec3f worldPos)
+{
+	return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
 }
 
 int main(int argc, char** argv)
@@ -126,7 +133,7 @@ int main(int argc, char** argv)
 		model = new Model("obj/african_head.obj");
 
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
-
+	Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
 	for (int i = 0; i < model->nfaces(); i++)
 	{
 		std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
@@ -135,11 +142,18 @@ int main(int argc, char** argv)
 		Vec3f v1 = model->vert(face[1]);
 		Vec3f v2 = model->vert(face[2]);
 		//转换到[0,width] [0,height]屏幕坐标
-		Vec3f v0screenCoord = Vec3f((v0.x + 1.0) * width / 2.0, (v0.y + 1.0) * height / 2.0, v0.z);
-		Vec3f v1screenCoord = Vec3f((v1.x + 1.0) * width / 2.0, (v1.y + 1.0) * height / 2.0, v1.z);
-		Vec3f v2screenCoord = Vec3f((v2.x + 1.0) * width / 2.0, (v2.y + 1.0) * height / 2.0, v2.z);
-		Vec3f screenTriangle[3] = {v0screenCoord,v1screenCoord,v2screenCoord};
-		triangle(screenTriangle, image, TGAColor(rand() % 255, rand() % 255, rand() % 255,1));
+		Vec3f v0screenCoord = World2Screen(v0);
+		Vec3f v1screenCoord = World2Screen(v1);
+		Vec3f v2screenCoord = World2Screen(v2);
+		Vec3f screenTriangle[3] = { v0screenCoord,v1screenCoord,v2screenCoord };
+
+		//用面法线代替顶点法线插值到像素，画每个三角形的颜色
+		Vec3f faceNormal = (v1 - v0) ^ (v2 - v0);//两个向量的叉积，既是垂直于他们的法向量
+		//注意：faceNormal如果叉积左右换一下，算出来的normal方向也会换180度，通过输出重心坐标可以看v0 v1 v2的顺序是顺时针的
+		faceNormal.normalize();
+		float lambert = faceNormal * light_dir * 255;//整个三角形面是一个颜色
+		if(lambert > 0)//因为没加先后顺序，所以不加这个判断，后面的面也会画三角形导致奇怪结果
+			triangle(screenTriangle, image, TGAColor(lambert, lambert, lambert, 1));
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
