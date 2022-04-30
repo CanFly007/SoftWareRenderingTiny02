@@ -86,7 +86,7 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 }
 
 //传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
-void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
+void triangle(Vec3f* trianglePtr, float* zBuffer, TGAImage& image, TGAColor color)
 {
 	Vec3f A = trianglePtr[0];
 	Vec3f B = trianglePtr[1];
@@ -94,7 +94,7 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 
 	Vec2i rectMin = Vec2i(width - 1, height - 1);
 	Vec2i rectMax = Vec2i(0, 0);
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)//三角形的3个点依次
 	{
 		rectMin.x = (int)(trianglePtr[i].x < rectMin.x ? trianglePtr[i].x : rectMin.x);
 		rectMin.y = (int)(trianglePtr[i].y < rectMin.y ? trianglePtr[i].y : rectMin.y);
@@ -102,8 +102,8 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 		rectMax.y = (int)(trianglePtr[i].y > rectMax.y ? trianglePtr[i].y : rectMax.y);
 	}
 
-	Vec3f curPixel;
-	Vec3f barCoord;
+	Vec3f curPixel;//设成int传参的,AABB内部填充的
+	Vec3f barCoord;//这个像素在三个点的重心坐标
 	for (int i = (int)rectMin.x; i <= rectMax.x; i++)
 	{
 		for (int j = (int)rectMin.y; j <= rectMax.y; j++)
@@ -111,9 +111,17 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 			curPixel = Vec3f(i, j, 1);
 			barCoord = barycentric(trianglePtr, curPixel);//盒子内该像素在该三角形的重心坐标，判断像素是否在三角形内
 			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
-				continue;//这个像素的重心坐标小于0，说明这个像素在三角形外，不画
+				continue;//AABB盒子里这个像素的重心坐标小于0，说明这个像素在三角形外，不画
 
-			image.set(i, j, color);
+			//这个像素在三角形内，再判断这个像素的深度测试
+			//先通过重心坐标找到这个像素的z深度值
+			float z = A.z * barCoord.x + B.z * barCoord.y + C.z * barCoord.z;//三角形三个点的深度，按重心坐标取得该像素点的深度
+			if (z > zBuffer[i * width + j])//右手坐标系
+			{
+				zBuffer[i * width + j] = z;
+				image.set(i, j, color);
+			}
+
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
 		}
 	}
@@ -132,8 +140,14 @@ int main(int argc, char** argv)
 	else
 		model = new Model("obj/african_head.obj");
 
+	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
 	Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
+	
+	float* zBuffer = new float[width * height];
+	for (int i = 0; i < width * height; i++)
+		zBuffer[i] = -std::numeric_limits<float>::max();
+
 	for (int i = 0; i < model->nfaces(); i++)
 	{
 		std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
@@ -152,8 +166,8 @@ int main(int argc, char** argv)
 		//注意：faceNormal如果叉积左右换一下，算出来的normal方向也会换180度，通过输出重心坐标可以看v0 v1 v2的顺序是顺时针的
 		faceNormal.normalize();
 		float lambert = faceNormal * light_dir * 255;//整个三角形面是一个颜色
-		if(lambert > 0)//因为没加先后顺序，所以不加这个判断，后面的面也会画三角形导致奇怪结果
-			triangle(screenTriangle, image, TGAColor(lambert, lambert, lambert, 1));
+
+		triangle(screenTriangle, zBuffer, image, TGAColor(lambert, lambert, lambert, 1));//加了zBuffer检测，lambert>0的条件可以去掉了
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
