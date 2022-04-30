@@ -52,6 +52,58 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 	}
 }
 
+//返回 点p在三角形trianglePtr中的重心坐标
+Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
+{
+	Vec3f A = trianglePtr[0];
+	Vec3f B = trianglePtr[1];
+	Vec3f C = trianglePtr[2];
+	//叉积的模表示两个向量的所围成的平行四边形
+	float areaABC = ((B - A) ^ (C - A)).norm() * 0.5; //ABC ABP APC PBC都是按点P在三角形内顺时针顺序组合的，如果点P在三角形外，叉积结果就会有正负之分
+	float areaABP = ((B - A) ^ (P - A)).norm() * 0.5;
+	float areaAPC = ((P - A) ^ (C - A)).norm() * 0.5;
+	float areaPBC = ((B - P) ^ (C - P)).norm() * 0.5;
+
+	float u = areaPBC / areaABC;
+	float v = areaAPC / areaABC;
+	float w = areaABP / areaABC;
+	return Vec3f(u, v, w);
+}
+
+//传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
+void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
+{
+	Vec3f A = trianglePtr[0];
+	Vec3f B = trianglePtr[1];
+	Vec3f C = trianglePtr[2];
+
+	Vec2i rectMin = Vec2i(width - 1, height - 1);
+	Vec2i rectMax = Vec2i(0, 0);
+	for (int i = 0; i < 3; i++)
+	{
+		rectMin.x = (int)(trianglePtr[i].x < rectMin.x ? trianglePtr[i].x : rectMin.x);
+		rectMin.y = (int)(trianglePtr[i].y < rectMin.y ? trianglePtr[i].y : rectMin.y);
+		rectMax.x = (int)(trianglePtr[i].x > rectMax.x ? trianglePtr[i].x : rectMax.x);
+		rectMax.y = (int)(trianglePtr[i].y > rectMax.y ? trianglePtr[i].y : rectMax.y);
+	}
+
+	Vec3f curPixel;
+	Vec3f barCoord;
+	for (int i = (int)rectMin.x; i <= rectMax.x; i++)
+	{
+		for (int j = (int)rectMin.y; j <= rectMax.y; j++)
+		{
+			curPixel = Vec3f(i, j, 1);
+			barCoord = barycentric(trianglePtr, curPixel);//盒子内该像素在该三角形的重心坐标，判断像素是否在三角形内
+			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
+				continue;//这个像素的重心坐标小于0，说明这个像素在三角形外，不画
+
+			image.set(i, j, color);
+		}
+	}
+}
+
+//使用逐行填充法(image.set)画三角形
 //画三角形，三个顶点ABC、依次画AB、BC、CA三条line
 //像素坐标，所以是Vec2i int值
 void triangle(Vec2i a, Vec2i b, Vec2i c, TGAImage& image, TGAColor color)
@@ -109,12 +161,12 @@ int main(int argc, char** argv)
 
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
 
-	Vec2i t0[3] = { Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80) };
-	Vec2i t1[3] = { Vec2i(180, 50),  Vec2i(150, 1),   Vec2i(70, 180) };
-	Vec2i t2[3] = { Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180) };
-	triangle(t0[0], t0[1], t0[2], image, red);
-	triangle(t1[0], t1[1], t1[2], image, white);
-	triangle(t2[0], t2[1], t2[2], image, green);
+	Vec3f t0[3] = { Vec3f(10, 70,1),   Vec3f(50, 160,1),  Vec3f(70, 80,1) };
+	Vec3f t1[3] = { Vec3f(180, 50,1),  Vec3f(150, 1,1),   Vec3f(70, 180,1) };
+	Vec3f t2[3] = { Vec3f(180, 150,1), Vec3f(120, 160,1), Vec3f(130, 180,1) };
+	triangle(t0, image, red);
+	triangle(t1, image, white);
+	triangle(t2, image, green);
 
 	//for (int i = 0; i < model->nfaces(); i++)
 	//{
