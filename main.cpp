@@ -8,8 +8,8 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model* model = NULL;
-const int width = 200;
-const int height = 200;
+const int width = 600;
+const int height = 600;
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
@@ -113,7 +113,7 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
 				continue;//这个像素的重心坐标小于0，说明这个像素在三角形外，不画
 
-			image.set(i, j, color);
+			image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));
 		}
 	}
 }
