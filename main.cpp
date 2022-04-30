@@ -120,44 +120,27 @@ void triangle(Vec3f* trianglePtr,TGAImage& image,TGAColor color)
 
 int main(int argc, char** argv)
 {
-	//if (2 == argc)
-	//	model = new Model(argv[1]);
-	//else
-	//	model = new Model("obj/african_head.obj");
+	if (2 == argc)
+		model = new Model(argv[1]);
+	else
+		model = new Model("obj/african_head.obj");
 
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
 
-	Vec3f t0[3] = { Vec3f(10, 70,1),   Vec3f(50, 160,1),  Vec3f(70, 80,1) };
-	Vec3f t1[3] = { Vec3f(180, 50,1),  Vec3f(150, 1,1),   Vec3f(70, 180,1) };
-	Vec3f t2[3] = { Vec3f(180, 150,1), Vec3f(120, 160,1), Vec3f(130, 180,1) };
-	triangle(t0, image, red);
-	triangle(t1, image, white);
-	triangle(t2, image, green);
-
-	//for (int i = 0; i < model->nfaces(); i++)
-	//{
-	//	std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
-	//	//v0 v1 v2是三个[-1,1]的坐标
-	//	Vec3f v0 = model->vert(face[0]);
-	//	Vec3f v1 = model->vert(face[1]);
-	//	Vec3f v2 = model->vert(face[2]);
-	//	//转换到[0,width] [0,height]屏幕坐标
-	//	Vec2i v0i = Vec2i((int)((v0.x + 1.0) * width / 2.0), (int)((v0.y + 1.0) * height / 2.0));
-	//	Vec2i v1i = Vec2i((int)((v1.x + 1.0) * width / 2.0), (int)((v1.y + 1.0) * height / 2.0));
-	//	Vec2i v2i = Vec2i((int)((v2.x + 1.0) * width / 2.0), (int)((v2.y + 1.0) * height / 2.0));
-	//	triangle(v0i, v1i, v2i, image, white);
-
-	//	//for (int j = 0; j < 3; j++)//循环3次，分别画顶点0和顶点1连线、顶点1和顶点2连线、顶点2和顶点0连线
-	//	//{
-	//	//	Vec3f v0 = model->vert(face[j]);//face[0]：f行中第一个元素。vert(face[0])：指向的顶点，即v行中3个数值Vec3f
-	//	//	Vec3f v1 = model->vert(face[(j + 1) % 3]);//取余数，即第二个顶点Vec3f
-	//	//	int x0 = (v0.x + 1.0) * width / 2.0;
-	//	//	int y0 = (v0.y + 1.0) * height / 2.0;
-	//	//	int x1 = (v1.x + 1.0) * width / 2.0;
-	//	//	int y1 = (v1.y + 1.0) * height / 2.0;//[-1,1] -> [0,height]
-	//	//	line(x0, y0, x1, y1, image, white);
-	//	//}
-	//}
+	for (int i = 0; i < model->nfaces(); i++)
+	{
+		std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
+		//v0 v1 v2是三个[-1,1]的坐标
+		Vec3f v0 = model->vert(face[0]);
+		Vec3f v1 = model->vert(face[1]);
+		Vec3f v2 = model->vert(face[2]);
+		//转换到[0,width] [0,height]屏幕坐标
+		Vec3f v0screenCoord = Vec3f((v0.x + 1.0) * width / 2.0, (v0.y + 1.0) * height / 2.0, v0.z);
+		Vec3f v1screenCoord = Vec3f((v1.x + 1.0) * width / 2.0, (v1.y + 1.0) * height / 2.0, v1.z);
+		Vec3f v2screenCoord = Vec3f((v2.x + 1.0) * width / 2.0, (v2.y + 1.0) * height / 2.0, v2.z);
+		Vec3f screenTriangle[3] = {v0screenCoord,v1screenCoord,v2screenCoord};
+		triangle(screenTriangle, image, TGAColor(rand() % 255, rand() % 255, rand() % 255,1));
+	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	image.write_tga_file("output.tga");
