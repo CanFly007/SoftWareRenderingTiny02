@@ -86,7 +86,7 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 }
 
 //传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
-void triangle(Vec3f* trianglePtr, float* zBuffer, TGAImage& image, TGAColor color)
+void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, float* zBuffer, TGAImage& image, TGAColor color)
 {
 	Vec3f A = trianglePtr[0];
 	Vec3f B = trianglePtr[1];
@@ -119,7 +119,10 @@ void triangle(Vec3f* trianglePtr, float* zBuffer, TGAImage& image, TGAColor colo
 			if (z > zBuffer[i * width + j])//右手坐标系
 			{
 				zBuffer[i * width + j] = z;
-				image.set(i, j, color);
+				//这个像素的uv值，通过三个点的重心坐标分别乘以三个点的uv值得到
+				Vec2f uv = triangleUVPtr[0] * barCoord.x + triangleUVPtr[1] * barCoord.y + triangleUVPtr[2] * barCoord.z;
+				//image.set(i, j, color);
+				image.set(i, j, TGAColor(uv.x * 255, uv.y * 255, 0, 1));
 			}
 
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
@@ -170,7 +173,11 @@ int main(int argc, char** argv)
 		faceNormal.normalize();
 		float lambert = faceNormal * light_dir * 255;//整个三角形面是一个颜色
 
-		triangle(screenTriangle, zBuffer, image, TGAColor(lambert, lambert, lambert, 1));//加了zBuffer检测，lambert>0的条件可以去掉了
+		//获得这个三角形三个顶点的uv值
+		Vec2f triangleUV[3] = {uv0,uv1,uv2};
+
+		triangle(screenTriangle, triangleUV,
+			zBuffer, image, TGAColor(lambert, lambert, lambert, 1));//加了zBuffer检测，lambert>0的条件可以去掉了
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
