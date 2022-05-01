@@ -153,8 +153,11 @@ int main(int argc, char** argv)
 		std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
 		//v0 v1 v2是三个[-1,1]的坐标
 		Vec3f v0 = model->vert(face[0]);
-		Vec3f v1 = model->vert(face[1]);
-		Vec3f v2 = model->vert(face[2]);
+		Vec2f uv0 = model->GetUV(face[1]);
+		Vec3f v1 = model->vert(face[2]);
+		Vec2f uv1 = model->GetUV(face[3]);
+		Vec3f v2 = model->vert(face[4]);
+		Vec2f uv2 = model->GetUV(face[5]);
 		//转换到[0,width] [0,height]屏幕坐标
 		Vec3f v0screenCoord = World2Screen(v0);
 		Vec3f v1screenCoord = World2Screen(v1);

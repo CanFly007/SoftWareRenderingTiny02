@@ -9,6 +9,7 @@ class Model
 private:
 	std::vector<Vec3f> verts_;
 	std::vector<std::vector<int>> faces_;
+	std::vector<Vec2f> uvs;
 
 public:
 	Model(const char* filename);
@@ -17,5 +18,6 @@ public:
 	int nfaces();
 	Vec3f vert(int i);
 	std::vector<int> face(int idx);
+	Vec2f GetUV(int index);
 };
 #endif // !MODEL_H
