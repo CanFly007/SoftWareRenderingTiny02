@@ -51,7 +51,9 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 			faces_.push_back(f);//f是3个元素，组成一个面，faces是所有的面集合,faces中每个元素即.obj中每一行
 		}
 	}
-	std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
+	std::cerr << "# v# " << verts_.size() << " vt# " << uvs.size() << " f# " << faces_.size() << std::endl;
+	
+	load_texture(filename, "_diffuse.tga", diffuseMap);
 }
 
 Model::~Model()
@@ -94,4 +96,36 @@ Vec2f Model::GetUV(int index)
 std::vector<int> Model::face(int idx)
 {
 	return faces_[idx];
+}
+
+/// <summary>
+/// 从硬盘中加载图片到img中,主要用到API是：img.read_tga_file，读到的结果放到img中
+/// </summary>
+/// <param name="filename"></param>
+/// <param name="suffix"></param>
+/// <param name="img"></param>
+void Model::load_texture(std::string filename, const char* suffix, TGAImage& img)
+{
+	std::string texfile(filename);
+	size_t dot = texfile.find_last_of(".");
+	if (dot != std::string::npos) 
+	{
+		texfile = texfile.substr(0, dot) + std::string(suffix);//filename去掉后缀.obj + suffix名称
+		std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
+		img.flip_vertically();
+	}
+}
+
+/// <summary>
+/// 通过UV坐标采样到这张diffuseMap的颜色，public方法开放给triangle函数调用
+/// </summary>
+/// <param name="uv"></param>
+/// <returns></returns>
+TGAColor Model::SamplerDiffseColor(Vec2f uv)
+{
+	int diffuseMapW = diffuseMap.get_width();
+	int diffuseMapH = diffuseMap.get_height();
+	return diffuseMap.get((int)(diffuseMapW * uv.u), (int)(diffuseMapH * uv.v));
+
+	//return diffuseMap.get(uv.u, uv.v);//貌似不用乘以width和height，get里面已经包含
 }
