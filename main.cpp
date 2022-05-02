@@ -1,6 +1,7 @@
 #include "tgaimage.h"
 #include "model.h"
 #include "geometry.h"
+#include "matrix.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
@@ -55,6 +56,25 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 //返回 点p在三角形trianglePtr中的重心坐标
 Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 {
+	//重心坐标还是不对
+	//Vec3f A = trianglePtr[0];
+	//Vec3f B = trianglePtr[1];
+	//Vec3f C = trianglePtr[2];
+	////求AB为一列，AC为一列构成的矩阵，他的逆矩阵
+	////matrix2x2()
+	//Vec3f v0 = C - A;
+	//Vec3f v1 = B - A;
+	//Vec3f v2 = P - A;
+	//float fenmu = (v0 * v0) * (v1 * v1) - (v0 * v1) * (v1 * v0);//下面三行是搬运的，没有自己在本子上画
+	//float u = ((v1 * v1) * (v2 * v0) - (v1 * v0) * (v2 * v1)) / fenmu;
+	//float v = ((v0 * v0) * (v2 * v1) - (v0 * v1) * (v2 * v0)) / fenmu;
+	//float s = 1 - u - v;
+	//if (s < 0 || u < 0 || v < 0)
+	//	return Vec3f(-1, -1, -1);
+	//return Vec3f(s, u, v);
+
+
+
 	Vec3f A = trianglePtr[0];
 	Vec3f B = trianglePtr[1];
 	Vec3f C = trianglePtr[2];
