@@ -164,7 +164,8 @@ void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, float* zBuffer, TGAImage
 				Vec2f uv = triangleUVPtr[0] * barCoord.x + triangleUVPtr[1] * barCoord.y + triangleUVPtr[2] * barCoord.z;
 				//image.set(i, j, color);
 				TGAColor diffuseColor = model->SamplerDiffseColor(uv);
-				image.set(i, j, diffuseColor);
+				//image.set(i, j, diffuseColor);
+				image.set(i, j, color);//注释掉上面这行，使用lambert传来的color来算整个面的color
 			}
 
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
