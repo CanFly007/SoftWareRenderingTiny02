@@ -11,6 +11,7 @@ const TGAColor blue = TGAColor(0, 0, 255, 255);
 Model* model = NULL;
 const int width = 600;
 const int height = 600;
+Vec3f light_dir(1, 1, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
@@ -127,7 +128,7 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 }
 
 //传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
-void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, float* zBuffer, TGAImage& image, TGAColor color)
+void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float* zBuffer, TGAImage& image, TGAColor color)
 {
 	Vec3f A = trianglePtr[0];
 	Vec3f B = trianglePtr[1];
@@ -162,10 +163,15 @@ void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, float* zBuffer, TGAImage
 				zBuffer[i * width + j] = z;
 				//这个像素的uv值，通过三个点的重心坐标分别乘以三个点的uv值得到
 				Vec2f uv = triangleUVPtr[0] * barCoord.x + triangleUVPtr[1] * barCoord.y + triangleUVPtr[2] * barCoord.z;
-				//image.set(i, j, color);
+				Vec3f normal = normalPtr[0] * barCoord.x + normalPtr[1] * barCoord.y + normalPtr[2] * barCoord.z;
+				normal = (normal + Vec3f(1.0, 1.0, 1.0)) / 2;
+				Vec3f lightDir = light_dir.normalize();
+				float lambert = normal * lightDir * 255;
+				if (lambert < 0)
+					lambert = 0;
 				TGAColor diffuseColor = model->SamplerDiffseColor(uv);
 				//image.set(i, j, diffuseColor);
-				image.set(i, j, color);//注释掉上面这行，使用lambert传来的color来算整个面的color
+				image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
 			}
 
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
@@ -188,7 +194,6 @@ int main(int argc, char** argv)
 
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
-	Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
 	
 	float* zBuffer = new float[width * height];
 	for (int i = 0; i < width * height; i++)
@@ -200,10 +205,15 @@ int main(int argc, char** argv)
 		//v0 v1 v2是三个[-1,1]的坐标
 		Vec3f v0 = model->vert(face[0]);
 		Vec2f uv0 = model->GetUV(face[1]);
-		Vec3f v1 = model->vert(face[2]);
-		Vec2f uv1 = model->GetUV(face[3]);
-		Vec3f v2 = model->vert(face[4]);
-		Vec2f uv2 = model->GetUV(face[5]);
+		Vec3f normal0 = model->GetNormal(face[2]);
+
+		Vec3f v1 = model->vert(face[3]);
+		Vec2f uv1 = model->GetUV(face[4]);
+		Vec3f normal1 = model->GetNormal(face[5]);
+
+		Vec3f v2 = model->vert(face[6]);
+		Vec2f uv2 = model->GetUV(face[7]);
+		Vec3f normal2 = model->GetNormal(face[8]);
 		//转换到[0,width] [0,height]屏幕坐标
 		Vec3f v0screenCoord = World2Screen(v0);
 		Vec3f v1screenCoord = World2Screen(v1);
@@ -219,7 +229,9 @@ int main(int argc, char** argv)
 		//获得这个三角形三个顶点的uv值
 		Vec2f triangleUV[3] = {uv0,uv1,uv2};
 
-		triangle(screenTriangle, triangleUV,
+		Vec3f triangleNormals[3] = { normal0,normal1,normal2 };//到像素里面通过重心坐标插值算每个像素的normal，算lambert
+
+		triangle(screenTriangle, triangleUV, triangleNormals,
 			zBuffer, image, TGAColor(lambert, lambert, lambert, 1));//加了zBuffer检测，lambert>0的条件可以去掉了
 	}
 

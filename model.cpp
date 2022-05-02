@@ -33,6 +33,14 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 				iss >> vt.raw[i];
 			uvs.push_back(vt);//uvs表示每一行vt的集合
 		}
+		else if (line.compare(0, 3, "vn ") == 0)
+		{
+			iss >> trash >> trash;
+			Vec3f vn;
+			for (int i = 0; i < 3; i++)
+				iss >> vn.raw[i];//raw[i]代表vn.x/vn.y和vn.z
+			normals.push_back(vn);//存所有normal的集合，之后用索引在normals容器中查找
+		}
 		else if (line.compare(0, 2, "f ") == 0) 
 		{
 			//f 24/1/24 25/2/25 26/3/26
@@ -47,6 +55,8 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 				f.push_back(indexVertex);//1对应的是vector<Vec3f> verts_数组中的0索引
 				indexUV--;//索引也是从1开始累计的，放到容器中从0开始
 				f.push_back(indexUV);//每个f中加入三个顶点的uv索引，现在f有六个元素
+				indexNormal--;
+				f.push_back(indexNormal);
 			}
 			faces_.push_back(f);//f是3个元素，组成一个面，faces是所有的面集合,faces中每个元素即.obj中每一行
 		}
@@ -86,6 +96,15 @@ Vec3f Model::vert(int i)
 Vec2f Model::GetUV(int index)
 {
 	return uvs[index];
+}
+/// <summary>
+/// 
+/// </summary>
+/// <param name="index"></param>
+/// <returns></returns>
+Vec3f Model::GetNormal(int index)
+{
+	return normals[index];
 }
 
 /// <summary>

@@ -13,6 +13,7 @@ private:
 	std::vector<Vec2f> uvs;
 	TGAImage diffuseMap;
 	void load_texture(std::string filename, const char* suffix, TGAImage& img);
+	std::vector<Vec3f> normals;
 
 public:
 	Model(const char* filename);
@@ -23,5 +24,6 @@ public:
 	std::vector<int> face(int idx);
 	Vec2f GetUV(int index);
 	TGAColor SamplerDiffseColor(Vec2f uv);
+	Vec3f GetNormal(int index);
 };
 #endif // !MODEL_H
