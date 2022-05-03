@@ -3,6 +3,7 @@
 #include "geometry.h"
 #include "matrix.h"
 
+
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 const TGAColor green = TGAColor(0, 255, 0, 255);
@@ -11,7 +12,10 @@ const TGAColor blue = TGAColor(0, 0, 255, 255);
 Model* model = NULL;
 const int width = 600;
 const int height = 600;
-Vec3f light_dir(1, 1, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
+
+Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
+Vec3f cameraPos(1, 1, 3);
+Vec3f lookAtPos(0, 0, 0);
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
@@ -185,8 +189,17 @@ Vec3f World2Screen(Vec3f worldPos)
 	return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
 }
 
+//Matrix World2View()
+//{
+//
+//}
+#include <iostream>
 int main(int argc, char** argv)
 {
+	Matrix4x4 m = Matrix4x4::identity();
+	std::cout << m[1][1] << std::endl;
+
+	return 1;
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else

@@ -13,12 +13,6 @@ public:
 	// a2,a4
 	float a1, a2, a3, a4;//按列排序
 };
-matrix2x2 matrix2x2::GetInverseMat()
-{
-	float outMul = 1 / (a1 * a4 - a3 * a2);
-	matrix2x2 inMat = matrix2x2(a4, -a2, -a3, a1);
-	return inMat * outMul;
-}
 
 template<class t>class matrix3x3
 {
@@ -39,6 +33,49 @@ public:
 	//a3,b3,c3
 	t a1, a2, a3, b1, b2, b3, c1, c2, c3;//按列排序
 };
+
+class Matrix4x4
+{
+public:
+	//float** mat;
+	float mat[4][4];//第一个[4]可以分开看，每一个对应下面的一个一维数组[4],共有4条线
+
+public:
+	Matrix4x4(float m11, float m12, float m13, float m14,
+		float m21, float m22, float m23, float m24,
+		float m31, float m32, float m33, float m34,
+		float m41, float m42, float m43, float m44)
+	{
+		//因为数组声明之后，不能在用{m11,m12}这种方式赋值，要一个一个赋值
+		mat[0][0] = m11; mat[0][1] = m12; mat[0][2] = m13; mat[0][3] = m14;
+		mat[1][0] = m21; mat[1][1] = m22; mat[1][2] = m23; mat[1][3] = m24;
+		mat[2][0] = m31; mat[2][1] = m32; mat[2][2] = m33; mat[2][3] = m34;
+		mat[3][0] = m41; mat[3][1] = m42; mat[3][2] = m43; mat[3][3] = m44;
+	}
+
+	static Matrix4x4 identity();
+
+	float* operator[](const int index)
+	{
+		return mat[index];
+	}
+};
+
+Matrix4x4 Matrix4x4::identity()
+{
+	return Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+}
+
+/// <summary>
+/// 2x2矩阵的逆
+/// </summary>
+/// <returns></returns>
+matrix2x2 matrix2x2::GetInverseMat()
+{
+	float outMul = 1 / (a1 * a4 - a3 * a2);
+	matrix2x2 inMat = matrix2x2(a4, -a2, -a3, a1);
+	return inMat * outMul;
+}
 
 //matrix3x3<t> matrix3x3::GetInverseMat() const
 //{
