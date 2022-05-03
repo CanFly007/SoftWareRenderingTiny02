@@ -14,7 +14,7 @@ const int width = 600;
 const int height = 600;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-Vec3f cameraPos(1, 1, 3);
+Vec3f cameraPos(0, 0, 0);
 Vec3f lookAtPos(0, 0, 0);
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
@@ -217,13 +217,13 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 #include <iostream>
 int main(int argc, char** argv)
 {
-	Matrix4x4 m = Matrix4x4::identity();
-	Matrix4x4 m1 = Matrix4x4::identity();
-	m[1][1] = 3.6;
-	Matrix4x4 result = m * m1;
-	std::cout << result[1][1] << std::endl;
+	//Matrix4x4 m = Matrix4x4::identity();
+	//Matrix4x4 m1 = Matrix4x4::identity();
+	//m[1][1] = 3.6;
+	//Matrix4x4 result = m * m1;
+	//std::cout << result[1][1] << std::endl;
 
-	return 1;
+	//return 1;
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
@@ -235,6 +235,8 @@ int main(int argc, char** argv)
 	float* zBuffer = new float[width * height];
 	for (int i = 0; i < width * height; i++)
 		zBuffer[i] = -std::numeric_limits<float>::max();
+
+	Matrix4x4 world2View = World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
 
 	for (int i = 0; i < model->nfaces(); i++)
 	{
@@ -251,6 +253,11 @@ int main(int argc, char** argv)
 		Vec3f v2 = model->vert(face[6]);
 		Vec2f uv2 = model->GetUV(face[7]);
 		Vec3f normal2 = model->GetNormal(face[8]);
+
+		v0 = (world2View * Matrix4x1(v0)).ToVec3();
+		v1 = (world2View * Matrix4x1(v1)).ToVec3();
+		v2 = (world2View * Matrix4x1(v2)).ToVec3();
+
 		//转换到[0,width] [0,height]屏幕坐标
 		Vec3f v0screenCoord = World2Screen(v0);
 		Vec3f v1screenCoord = World2Screen(v1);

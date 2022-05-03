@@ -1,6 +1,8 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include "geometry.h"
+
 class matrix2x2
 {
 public:
@@ -32,6 +34,28 @@ public:
 	//a2,b2,c2
 	//a3,b3,c3
 	t a1, a2, a3, b1, b2, b3, c1, c2, c3;//∞¥¡–≈≈–Ú
+};
+
+class Matrix4x1
+{
+public:
+	float mat[4];
+
+public:
+	Matrix4x1(float a, float b, float c, float d)
+	{
+		mat[0] = a; mat[1] = b; mat[2] = c; mat[3] = d;
+	}
+
+	Matrix4x1(Vec3f v, float pointOrVector = 1)
+	{
+		mat[0] = v[0]; mat[1] = v[1]; mat[2] = v[2]; mat[3] = pointOrVector;
+	}
+
+	Vec3f ToVec3()
+	{
+		return Vec3f(mat[0] / mat[3], mat[1] / mat[3], mat[2] / mat[3]);
+	}
 };
 
 class Matrix4x4
@@ -72,9 +96,25 @@ public:
 				for (int k = 0; k < 4; k++)
 				{
 					trans += this->mat[i][k] * B.mat[k][j];
-					resultMat[i][j] = trans;
 				}
+				resultMat[i][j] = trans;
 			}
+		}
+		return resultMat;
+	}
+
+	Matrix4x1 operator*(const Matrix4x1& B)const
+	{
+		Matrix4x1 resultMat = Matrix4x1(0, 0, 0, 1);
+		float trans;
+		for (int i = 0; i < 4; i++)
+		{
+			trans = 0;
+			for (int k = 0; k < 4; k++)
+			{
+				trans += this->mat[0][k] * B.mat[k];
+			}
+			resultMat.mat[i] = trans;
 		}
 		return resultMat;
 	}
