@@ -59,6 +59,25 @@ public:
 	{
 		return mat[index];
 	}
+
+	Matrix4x4 operator*(const Matrix4x4& B)const
+	{
+		Matrix4x4 resultMat = Matrix4x4::identity();
+		float trans;
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				trans = 0;
+				for (int k = 0; k < 4; k++)
+				{
+					trans += this->mat[i][k] * B.mat[k][j];
+					resultMat[i][j] = trans;
+				}
+			}
+		}
+		return resultMat;
+	}
 };
 
 Matrix4x4 Matrix4x4::identity()

@@ -218,7 +218,10 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 int main(int argc, char** argv)
 {
 	Matrix4x4 m = Matrix4x4::identity();
-	std::cout << m[1][1] << std::endl;
+	Matrix4x4 m1 = Matrix4x4::identity();
+	m[1][1] = 3.6;
+	Matrix4x4 result = m * m1;
+	std::cout << result[1][1] << std::endl;
 
 	return 1;
 	if (2 == argc)
