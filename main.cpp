@@ -189,10 +189,31 @@ Vec3f World2Screen(Vec3f worldPos)
 	return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
 }
 
-//Matrix World2View()
-//{
-//
-//}
+//把摄像机在世界坐标系下表示的轴uvw，按行排列，就是World->view。按列排列，就是view->World
+//按列排列时候，第四列可以是view在世界坐标轴表示下的原点坐标，但反过来按行则不行，因为原点坐标不是正交性，求逆不等于求转置，3x3的旋转轴因为正交性所以可以
+//按行排列，也可以这样理解：view的每一个轴u、v、w和世界坐标做点积，相当于这个世界坐标分别在u、v、w单位向量上的投影，当然就变到的viewSpace
+//因为平移没有正交性，需要两个旋转和平移两个矩阵，对于一个物体来说，先反方向施加平移矩阵，再做旋转矩阵，即矩阵是V * T * 物体坐标
+Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
+{
+	Vec3f z = (cameraPos - lookAtPos).normalize();
+	Vec3f x = (upDir ^ z).normalize();
+	Vec3f y = (z ^ x).normalize();
+	Matrix4x4 viewMat = Matrix4x4::identity();//上面注释中的V，即旋转的3x3矩阵
+	for (int j = 0; j < 3; j++)
+	{
+		viewMat[0][j] = x[j];//按行排列
+		viewMat[1][j] = y[j];
+		viewMat[2][j] = z[j];
+	}
+
+	Matrix4x4 translationMat = Matrix4x4::identity();
+	for (int i = 0; i < 3; i++)
+	{
+		translationMat[i][3] = -cameraPos[i];//平移矩阵：第四列为负方向
+	}
+
+	return viewMat;
+}
 #include <iostream>
 int main(int argc, char** argv)
 {
