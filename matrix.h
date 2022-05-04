@@ -77,7 +77,12 @@ public:
 
 	void Identity();
 	T* operator[](const int index);
-	T** operator*(const Matrix<T>& matrixB);
+	T* operator[](const int index)const;
+
+	Matrix<T> operator*(const Matrix<T>& matrixB);
+
+	//用于调试输出的
+	template<typename T> friend std::ostream& operator<<(std::ostream& out, const Matrix<T>& m);
 };
 template<typename T> Matrix<T>::Matrix(const int r, const int c)
 {
@@ -114,14 +119,50 @@ template<typename T> Matrix<T>::~Matrix()
 
 template<typename T> T* Matrix<T>::operator[](const int index)
 {
-	return matrix[index];
+	//return matrix[index];
+	return this->matrix[index];
+}
+template<typename T> T* Matrix<T>::operator[](const int index)const
+{
+	//return matrix[index];
+	return this->matrix[index];
 }
 
-template<typename T> T** Matrix<T>::operator*(const Matrix<T>& matrixB)
+template<typename T> Matrix<T> Matrix<T>::operator*(const Matrix<T>& matrixB)
 {
+	Matrix<T> errorMat(0, 0);
 	if (col != matrixB.row)
-		return;
-	return;
+		return errorMat;
+
+	T trans;
+	Matrix<T> result(col, matrixB.row);
+	for (int i = 0; i < row; i++)
+	{
+		for (int j = 0; j < matrixB.col; j++)
+		{
+			trans = 0;
+			for (int k = 0; k < col; k++)//这个col等于matrixB的row
+			{
+				trans += matrix[i][k] * matrixB.matrix[k][j];
+			}
+			result[i][j] = trans;
+		}
+	}
+	return result;
+}
+
+//输出输入friend std::cout
+template<typename T> std::ostream& operator<<(std::ostream& out, const Matrix<T>& m)
+{
+	for (int i = 0; i < m.row; i++)
+	{
+		for (int j = 0; j < m.col; j++)
+		{
+			out << m[i][j] << ' ';
+		}
+		out << '\n';
+	}
+	return out;
 }
 
 class Matrix4x4
