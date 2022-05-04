@@ -212,7 +212,7 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 		translationMat[i][3] = -cameraPos[i];//平移矩阵：第四列为负方向
 	}
 
-	return viewMat;
+	return viewMat * translationMat;//先平移再旋转
 }
 #include <iostream>
 int main(int argc, char** argv)
@@ -222,8 +222,8 @@ int main(int argc, char** argv)
 	//m[1][1] = 3.6;
 	//Matrix4x4 result = m * m1;
 	//std::cout << result[1][1] << std::endl;
-
 	//return 1;
+
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
