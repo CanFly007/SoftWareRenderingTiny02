@@ -217,12 +217,19 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 #include <iostream>
 int main(int argc, char** argv)
 {
+	const int aa = 4;
+	Matrix<float> m(4, 4);	//Matrix<float>* m = new Matrix<float>(4, 4);
+	m.Identity();
+	std::cout << m.matrix[0][0] << std::endl;//matrix要变成private变量了
+	m[0][0] = 3;
+	std::cout << m[0][0] << std::endl;//第一个[]是Matrix类的重载[]，得到的是T*，是指针。第二个[]因为是T*指针，而数组名也可以是T*
+
 	//Matrix4x4 m = Matrix4x4::identity();
 	//Matrix4x4 m1 = Matrix4x4::identity();
 	//m[1][1] = 3.6;
 	//Matrix4x4 result = m * m1;
 	//std::cout << result[1][1] << std::endl;
-	//return 1;
+	return 1;
 
 	if (2 == argc)
 		model = new Model(argv[1]);

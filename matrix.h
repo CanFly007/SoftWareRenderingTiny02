@@ -3,6 +3,10 @@
 
 #include "geometry.h"
 
+
+
+
+
 class matrix2x2
 {
 public:
@@ -57,6 +61,68 @@ public:
 		return Vec3f(mat[0] / mat[3], mat[1] / mat[3], mat[2] / mat[3]);
 	}
 };
+
+
+//定义真正通用的矩阵类
+template<typename T> class Matrix
+{
+public:
+	T** matrix;
+	int row;//因为要兼顾4x1矩阵，所以行和列有可能不同
+	int col;
+
+public:
+	Matrix(const int r, const int c);
+	~Matrix();
+
+	void Identity();
+	T* operator[](const int index);
+	T** operator*(const Matrix<T>& matrixB);
+};
+template<typename T> Matrix<T>::Matrix(const int r, const int c)
+{
+	row = r;
+	col = c;
+	matrix = new T* [row];
+	for (int i = 0; i < r; i++)
+	{
+		matrix[i] = new T[col];
+	}
+}
+
+template<typename T> void Matrix<T>::Identity()
+{
+	//已经执行过构造函数的对象，再执行Identity方法
+	if (row != col)
+		return;
+	for (int i = 0; i < row; i++)
+		for (int j = 0; j < col; j++)
+			matrix[i][j] = i == j ? 1 : 0;
+}
+
+template<typename T> Matrix<T>::~Matrix()
+{
+	if (matrix)
+	{
+		for (int i = 0; i < row; i++)
+		{
+			delete[] matrix[i];//删除matrix[i]对应的一维数组
+		}
+		delete[] matrix;//删除外层数组
+	}
+}
+
+template<typename T> T* Matrix<T>::operator[](const int index)
+{
+	return matrix[index];
+}
+
+template<typename T> T** Matrix<T>::operator*(const Matrix<T>& matrixB)
+{
+	if (col != matrixB.row)
+		return;
+	return;
+}
 
 class Matrix4x4
 {
