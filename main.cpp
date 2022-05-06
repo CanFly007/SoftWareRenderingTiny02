@@ -224,7 +224,8 @@ int main(int argc, char** argv)
 	B[0][0] = 2; B[0][1] = 4;
 	B[1][0] = -3; B[1][1] = -6;
 	//std::cout << m.matrix[0][0] << std::endl;//matrix要变成private变量了
-	Matrix<int> C = A * B;
+	Matrix<int> C(2, 2);
+	C= A * B;
 	std::cout << C << std::endl;//第一个[]是Matrix类的重载[]，得到的是T*，是指针。第二个[]因为是T*指针，而数组名也可以是T*
 
 	return 1;

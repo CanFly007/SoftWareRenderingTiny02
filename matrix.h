@@ -80,6 +80,7 @@ public:
 	T* operator[](const int index)const;
 
 	Matrix<T> operator*(const Matrix<T>& matrixB);
+	Matrix<T> operator=(const Matrix<T>& matrixB);
 
 	//用于调试输出的
 	template<typename T> friend std::ostream& operator<<(std::ostream& out, const Matrix<T>& m);
@@ -149,7 +150,20 @@ template<typename T> Matrix<T> Matrix<T>::operator*(const Matrix<T>& matrixB)
 		}
 	}
 	return result;
+}//由于trans的生命周期到这就结束了，所以result的matrix指针指向丢失量
+
+template<typename T> Matrix<T> Matrix<T>::operator=(const Matrix<T>& matrixB)
+{
+	Matrix<T> error(0, 0);
+	if (this->row != matrixB.row || this->col != matrixB.col)
+		return error;
+
+	//Matrix<T> result(this->row, this->col);
+	for (int i = 0; i < this->row; i++)
+		for (int j = 0; j < this->col; j++)
+			matrix[i][j] = matrixB[i][j];
 }
+
 
 //输出输入friend std::cout
 template<typename T> std::ostream& operator<<(std::ostream& out, const Matrix<T>& m)
