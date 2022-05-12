@@ -214,19 +214,60 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 
 	return viewMat * translationMat;//先平移再旋转
 }
+#include "maths.h"
 #include <iostream>
 int main(int argc, char** argv)
 {
-	Matrix A(2, 2);	//Matrix<float>* m = new Matrix<float>(4, 4);
-	A[0][0] = -2; A[0][1] = 4;
-	A[1][0] = 1; A[1][1] = -2;
-	Matrix B(2, 2);
-	B[0][0] = 2; B[0][1] = 4;
-	B[1][0] = -3; B[1][1] = -6;
-	//std::cout << m.matrix[0][0] << std::endl;//matrix要变成private变量了
-	Matrix C(2, 2);
-	C= A * B;
-	//std::cout << C << std::endl;//第一个[]是Matrix类的重载[]，得到的是T*，是指针。第二个[]因为是T*指针，而数组名也可以是T*
+	mat4 A = mat4();
+	A[0][0] = 1;
+	A[0][1] = 0;
+	A[0][2] = 0;
+	A[0][3] = 0;
+
+	A[1][0] = 1;
+	A[1][1] = 2;
+	A[1][2] = 0;
+	A[1][3] = 0;
+
+	A[2][0] = 2;
+	A[2][1] = 1;
+	A[2][2] = 3;
+	A[2][3] = 0;
+
+	A[3][0] = 1;
+	A[3][1] = 2;
+	A[3][2] = 1;
+	A[3][3] = 4;
+
+	std::cout << A << std::endl;
+	std::cout << "---------------" << std::endl;
+	mat4 B = A.inverse();
+	std::cout << B << std::endl;
+
+	//extern float mat4_determinant(const mat4 & m);
+		//float result = mat4_determinant(A);
+	//for (int i = 0; i < 4; i++)
+	//{
+	//	float r = mat4_minor(i, 1, A);
+	//	std::cout << r << std::endl;
+	//	result += r;
+	//}
+	//std::cout << result << std::endl;
+
+	//extern mat3 mat3_adjoint(const mat3 & m);
+	//mat3 B = A.inverse();
+	//std::cout << B << std::endl;
+
+	//Matrix A(2, 2);	//Matrix<float>* m = new Matrix<float>(4, 4);
+	//A[0][0] = -2; A[0][1] = 4;
+	//A[1][0] = 1; A[1][1] = -2;
+	//Matrix B(2, 2);
+	//B[0][0] = 2; B[0][1] = 4;
+	//B[1][0] = -3; B[1][1] = -6;
+	////std::cout << m.matrix[0][0] << std::endl;//matrix要变成private变量了
+	//Matrix C(2, 2);
+	//C= A * B;
+	////std::cout << C << std::endl;//第一个[]是Matrix类的重载[]，得到的是T*，是指针。第二个[]因为是T*指针，而数组名也可以是T*
 
 	return 1;
 

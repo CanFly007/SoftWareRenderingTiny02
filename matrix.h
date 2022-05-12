@@ -377,7 +377,7 @@ public:
 				}
 			}
 		}
-		return *ba_M;
+		return ba_M;
 	}
 
 	//template<typename T> 
