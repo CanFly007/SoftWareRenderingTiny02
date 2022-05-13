@@ -2,6 +2,7 @@
 #include "model.h"
 #include "geometry.h"
 #include "matrix.h"
+#include "maths.h"
 
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
@@ -10,12 +11,18 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model* model = NULL;
-const int width = 600;
-const int height = 600;
+const int width = 800;
+const int height = 800;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-Vec3f cameraPos(0, 0, 0);
+Vec3f cameraPos(0, 0, -3);
 Vec3f lookAtPos(0, 0, 0);
+
+//正交相机
+float cameraWidth = 3.0;
+float cameraHeight = 3.0;
+float cameraFarPlane = 100.0;
+float cameraNearPlane = 1.0;
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
@@ -193,12 +200,12 @@ Vec3f World2Screen(Vec3f worldPos)
 //按列排列时候，第四列可以是view在世界坐标轴表示下的原点坐标，但反过来按行则不行，因为原点坐标不是正交性，求逆不等于求转置，3x3的旋转轴因为正交性所以可以
 //按行排列，也可以这样理解：view的每一个轴u、v、w和世界坐标做点积，相当于这个世界坐标分别在u、v、w单位向量上的投影，当然就变到的viewSpace
 //因为平移没有正交性，需要两个旋转和平移两个矩阵，对于一个物体来说，先反方向施加平移矩阵，再做旋转矩阵，即矩阵是V * T * 物体坐标
-Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
+mat4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 {
 	Vec3f z = (cameraPos - lookAtPos).normalize();
 	Vec3f x = (upDir ^ z).normalize();
 	Vec3f y = (z ^ x).normalize();
-	Matrix4x4 viewMat = Matrix4x4::identity();//上面注释中的V，即旋转的3x3矩阵
+	mat4 viewMat = mat4::identity();//上面注释中的V，即旋转的3x3矩
 	for (int j = 0; j < 3; j++)
 	{
 		viewMat[0][j] = x[j];//按行排列
@@ -206,7 +213,7 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 		viewMat[2][j] = z[j];
 	}
 
-	Matrix4x4 translationMat = Matrix4x4::identity();
+	mat4 translationMat = mat4::identity();
 	for (int i = 0; i < 3; i++)
 	{
 		translationMat[i][3] = -cameraPos[i];//平移矩阵：第四列为负方向
@@ -214,63 +221,31 @@ Matrix4x4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
 
 	return viewMat * translationMat;//先平移再旋转
 }
-#include "maths.h"
+//viewSpace变换到正交裁剪空间(即ClipSpace)
+mat4 OrthoProjection()
+{
+	mat4 orthoProjection = mat4::identity();
+	orthoProjection[0][0] = 2.0 / cameraWidth;
+	orthoProjection[1][1] = 2.0 / cameraHeight;
+	orthoProjection[2][2] = 2.0 / (cameraNearPlane - cameraFarPlane);
+	orthoProjection[2][3] = (cameraNearPlane + cameraFarPlane) / (cameraNearPlane - cameraFarPlane);
+	return orthoProjection;
+}
+
+//视口变换，[-1,1]变到屏幕的[0,width],z不变，还是[-1,1]
+mat4 viewport()
+{
+	//return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
+	mat4 m = mat4::identity();
+	m[0][0] = width / 2.0;
+	m[0][3] = width / 2.0;
+	m[1][1] = height / 2.0;
+	m[1][3] = height / 2.0;
+	return m;
+}
 #include <iostream>
 int main(int argc, char** argv)
 {
-	mat4 A = mat4();
-	A[0][0] = 1;
-	A[0][1] = 0;
-	A[0][2] = 0;
-	A[0][3] = 0;
-
-	A[1][0] = 1;
-	A[1][1] = 2;
-	A[1][2] = 0;
-	A[1][3] = 0;
-
-	A[2][0] = 2;
-	A[2][1] = 1;
-	A[2][2] = 3;
-	A[2][3] = 0;
-
-	A[3][0] = 1;
-	A[3][1] = 2;
-	A[3][2] = 1;
-	A[3][3] = 4;
-
-	std::cout << A << std::endl;
-	std::cout << "---------------" << std::endl;
-	mat4 B = A.inverse();
-	std::cout << B << std::endl;
-
-	//extern float mat4_determinant(const mat4 & m);
-		//float result = mat4_determinant(A);
-	//for (int i = 0; i < 4; i++)
-	//{
-	//	float r = mat4_minor(i, 1, A);
-	//	std::cout << r << std::endl;
-	//	result += r;
-	//}
-	//std::cout << result << std::endl;
-
-	//extern mat3 mat3_adjoint(const mat3 & m);
-	//mat3 B = A.inverse();
-	//std::cout << B << std::endl;
-
-	//Matrix A(2, 2);	//Matrix<float>* m = new Matrix<float>(4, 4);
-	//A[0][0] = -2; A[0][1] = 4;
-	//A[1][0] = 1; A[1][1] = -2;
-	//Matrix B(2, 2);
-	//B[0][0] = 2; B[0][1] = 4;
-	//B[1][0] = -3; B[1][1] = -6;
-	////std::cout << m.matrix[0][0] << std::endl;//matrix要变成private变量了
-	//Matrix C(2, 2);
-	//C= A * B;
-	////std::cout << C << std::endl;//第一个[]是Matrix类的重载[]，得到的是T*，是指针。第二个[]因为是T*指针，而数组名也可以是T*
-
-	return 1;
-
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
@@ -283,7 +258,9 @@ int main(int argc, char** argv)
 	for (int i = 0; i < width * height; i++)
 		zBuffer[i] = -std::numeric_limits<float>::max();
 
-	Matrix4x4 world2View = World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
+	mat4 world2View = World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
+	mat4 projection = OrthoProjection();
+	mat4 viewPortMat = viewport();
 
 	for (int i = 0; i < model->nfaces(); i++)
 	{
@@ -301,14 +278,35 @@ int main(int argc, char** argv)
 		Vec2f uv2 = model->GetUV(face[7]);
 		Vec3f normal2 = model->GetNormal(face[8]);
 
-		v0 = (world2View * Matrix4x1(v0)).ToVec3();
-		v1 = (world2View * Matrix4x1(v1)).ToVec3();
-		v2 = (world2View * Matrix4x1(v2)).ToVec3();
+		vec4 v0_homogeneous = vec4(v0[0], v0[1], v0[2], 1.0);//大写的Vec3类转到小写的类，之后可以统一成一个类
+		vec4 v1_homogeneous = vec4(v1[0], v1[1], v1[2], 1.0);
+		vec4 v2_homogeneous = vec4(v2[0], v2[1], v2[2], 1.0);
+
+		vec4 v0_view = world2View * v0_homogeneous;
+		vec4 v1_view = world2View * v1_homogeneous;
+		vec4 v2_view = world2View * v2_homogeneous;
+
+		vec4 v0_projection = projection * v0_view;
+		vec4 v1_projection = projection * v1_view;
+		vec4 v2_projection = projection * v2_view;
+		
+		//正交裁剪之后，xyz分量需要做一次透视除法，除以w
+		vec4 v0_division = vec4(v0_projection[0] / v0_projection[3], v0_projection[1] / v0_projection[3], v0_projection[2] / v0_projection[3], v0_projection[3]);
+		vec4 v1_division = vec4(v1_projection[0] / v1_projection[3], v1_projection[1] / v1_projection[3], v1_projection[2] / v1_projection[3], v1_projection[3]);
+		vec4 v2_division = vec4(v2_projection[0] / v2_projection[3], v2_projection[1] / v2_projection[3], v2_projection[2] / v2_projection[3], v2_projection[3]);
+
+		vec4 v0_viewPort = viewPortMat * v0_division;
+		vec4 v1_viewPort = viewPortMat * v1_division;
+		vec4 v2_viewPort = viewPortMat * v2_division;
+
+		Vec3f v0screenCoord = Vec3f(v0_viewPort[0], v0_viewPort[1], v0_viewPort[2]);
+		Vec3f v1screenCoord = Vec3f(v1_viewPort[0], v1_viewPort[1], v1_viewPort[2]);
+		Vec3f v2screenCoord = Vec3f(v2_viewPort[0], v2_viewPort[1], v2_viewPort[2]);
 
 		//转换到[0,width] [0,height]屏幕坐标
-		Vec3f v0screenCoord = World2Screen(v0);
-		Vec3f v1screenCoord = World2Screen(v1);
-		Vec3f v2screenCoord = World2Screen(v2);
+		//Vec3f v0screenCoord = World2Screen(v0);
+		//Vec3f v1screenCoord = World2Screen(v1);
+		//Vec3f v2screenCoord = World2Screen(v2);
 		Vec3f screenTriangle[3] = { v0screenCoord,v1screenCoord,v2screenCoord };
 
 		//用面法线代替顶点法线插值到像素，画每个三角形的颜色

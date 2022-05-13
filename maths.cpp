@@ -179,6 +179,22 @@ mat4 mat4::operator/(float t) const{
 		m[i] = rows[i] / t;
 	return m;
 }
+mat4 mat4::operator*(const mat4 B) const {
+	mat4 m;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			for (int k = 0; k < 4; k++)
+				m[i][j] += (*this)[i][k] * B[k][j];
+	return m;
+}
+vec4 mat4::operator*(const vec4 V) const
+{
+	vec4 result;
+	for (int i = 0; i < 4; i++)
+		for (int k = 0; k < 4; k++)
+			result[i] += (*this)[i][k] * V[k];
+	return result;
+}
 mat4 mat4::identity()
 {
 	mat4 m;

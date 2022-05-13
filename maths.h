@@ -81,6 +81,8 @@ public:
 	vec4& operator[](int i);
 	vec4 operator[](int i) const;
 	mat4 operator/(float t) const;
+	mat4 operator*(const mat4 B) const;
+	vec4 operator*(const vec4 V) const;
 
 	static mat4 identity();
 	mat4 transpose() const;
