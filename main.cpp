@@ -3,6 +3,7 @@
 #include "geometry.h"
 #include "matrix.h"
 #include "maths.h"
+#include "our_gl.h"
 
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
@@ -65,183 +66,12 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 	}
 }
 
-//返回 点p在三角形trianglePtr中的重心坐标
-Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
-{
-	//重心坐标还是不对 只能用作者提供的方法是正确的
-	//Vec3f A = trianglePtr[0];
-	//Vec3f B = trianglePtr[1];
-	//Vec3f C = trianglePtr[2];
-	////求AB为一列，AC为一列构成的矩阵，他的逆矩阵
-	////matrix2x2()
-	//Vec3f v0 = C - A;
-	//Vec3f v1 = B - A;
-	//Vec3f v2 = P - A;
-
-	//float dot00 = v0 * v0;//下面行是搬运的，没有自己在本子上画
-	//float dot01 = v0 * v1;
-	//float dot02 = v0 * v2;
-	//float dot11 = v1 * v1;
-	//float dot12 = v1 * v2;
-	//float invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-	//float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-	//float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-	//if (u < 0 || v < 0 || u + v >= 1)
-	//	return Vec3f(-1, -1, -1);
-	//return Vec3f(1.0 - u - v, u, v);
-
-
-	Vec3f A = trianglePtr[0];
-	Vec3f B = trianglePtr[1];
-	Vec3f C = trianglePtr[2];
-
-	Vec3f s[2];
-	s[0] = Vec3f(C.x - A.x, B.x - A.x, A.x - P.x);
-	s[1] = Vec3f(C.y - A.y, B.y - A.y, A.y - P.y);
-
-	Vec3f u = s[0] ^ s[1];
-	if (std::abs(u.z) > 1e-2) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
-		return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);//因为u的结果是(u,v,1)
-	return Vec3f(-1, 1, 1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
-
-
-
-
-	//Vec3f A = trianglePtr[0];
-	//Vec3f B = trianglePtr[1];
-	//Vec3f C = trianglePtr[2];
-
-	//Vec3f crossABC = (B - A) ^ (C - A); //ABC ABP APC PBC都是按点P在三角形内顺时针顺序组合的
-	//Vec3f crossABP = (B - A) ^ (P - A);
-	//Vec3f crossAPC = (P - A) ^ (C - A);
-	//Vec3f crossPBC = (B - P) ^ (C - P);
-
-	////叉积的方向，如果点P在三角形外，叉积结果就会有正负之分
-	////新学到方法，用点积判断方向,同侧点积为正
-	//float outsideAB = crossABC * crossABP;//如果点积为负数，表示ABP是逆时针的，P在AB边外侧
-	//float outsideAC = crossABC * crossAPC;
-	//float outsideBC = crossABC * crossPBC;
-	//if (outsideAB < 0 || outsideAC < 0 || outsideBC < 0)
-	//	return Vec3f(-1, -1, -1);//满足其中一个，则不在三角形内，不用下面计算了，也可以在下面uvw时候加负号,AB边外则对着w权重为负数
-
-	////叉积的模表示两个向量的所围成的平行四边形面积，用来计算重心坐标
-	//float areaABC = crossABC.norm() * 0.5; //如果点P在三角形外，叉积结果就会有正负之分
-	//float areaABP = crossABP.norm() * 0.5;
-	//float areaAPC = crossAPC.norm() * 0.5;
-	//float areaPBC = crossPBC.norm() * 0.5;
-
-
-	//float u = areaPBC / areaABC;
-	//float v = areaAPC / areaABC;
-	//float w = areaABP / areaABC;
-	//return Vec3f(u, v, w);
-}
-
-//传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
-void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float* zBuffer, TGAImage& image, TGAColor color)
-{
-	Vec3f A = trianglePtr[0];
-	Vec3f B = trianglePtr[1];
-	Vec3f C = trianglePtr[2];
-
-	Vec2i rectMin = Vec2i(width - 1, height - 1);
-	Vec2i rectMax = Vec2i(0, 0);
-	for (int i = 0; i < 3; i++)//三角形的3个点依次
-	{
-		rectMin.x = (int)(trianglePtr[i].x < rectMin.x ? trianglePtr[i].x : rectMin.x);
-		rectMin.y = (int)(trianglePtr[i].y < rectMin.y ? trianglePtr[i].y : rectMin.y);
-		rectMax.x = (int)(trianglePtr[i].x > rectMax.x ? trianglePtr[i].x : rectMax.x);
-		rectMax.y = (int)(trianglePtr[i].y > rectMax.y ? trianglePtr[i].y : rectMax.y);
-	}
-
-	Vec3f curPixel;//设成int传参的,AABB内部填充的
-	Vec3f barCoord;//这个像素在三个点的重心坐标
-	for (int i = (int)rectMin.x; i <= rectMax.x; i++)
-	{
-		for (int j = (int)rectMin.y; j <= rectMax.y; j++)
-		{
-			curPixel = Vec3f(i, j, 1);
-			barCoord = barycentric(trianglePtr, curPixel);//盒子内该像素在该三角形的重心坐标，判断像素是否在三角形内
-			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
-				continue;//AABB盒子里这个像素的重心坐标小于0，说明这个像素在三角形外，不画
-
-			//这个像素在三角形内，再判断这个像素的深度测试
-			//先通过重心坐标找到这个像素的z深度值
-			float z = A.z * barCoord.x + B.z * barCoord.y + C.z * barCoord.z;//三角形三个点的深度，按重心坐标取得该像素点的深度
-			if (z > zBuffer[i * width + j])//右手坐标系
-			{
-				zBuffer[i * width + j] = z;
-				//这个像素的uv值，通过三个点的重心坐标分别乘以三个点的uv值得到
-				Vec2f uv = triangleUVPtr[0] * barCoord.x + triangleUVPtr[1] * barCoord.y + triangleUVPtr[2] * barCoord.z;
-				Vec3f normal = normalPtr[0] * barCoord.x + normalPtr[1] * barCoord.y + normalPtr[2] * barCoord.z;
-				normal = (normal + Vec3f(1.0, 1.0, 1.0)) / 2;
-				Vec3f lightDir = light_dir.normalize();
-				float lambert = normal * lightDir * 255;
-				if (lambert < 0)
-					lambert = 0;
-				TGAColor diffuseColor = model->SamplerDiffseColor(uv);
-				image.set(i, j, diffuseColor);
-				//image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
-			}
-
-			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
-		}
-	}
-}
-
 //.obj文件中定义的顶点坐标[-1,1]，转换到屏幕坐标[0,width]和[0,height]，z值不变，仍然是[-1,1]区间
 Vec3f World2Screen(Vec3f worldPos)
 {
 	return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
 }
 
-//把摄像机在世界坐标系下表示的轴uvw，按行排列，就是World->view。按列排列，就是view->World
-//按列排列时候，第四列可以是view在世界坐标轴表示下的原点坐标，但反过来按行则不行，因为原点坐标不是正交性，求逆不等于求转置，3x3的旋转轴因为正交性所以可以
-//按行排列，也可以这样理解：view的每一个轴u、v、w和世界坐标做点积，相当于这个世界坐标分别在u、v、w单位向量上的投影，当然就变到的viewSpace
-//因为平移没有正交性，需要两个旋转和平移两个矩阵，对于一个物体来说，先反方向施加平移矩阵，再做旋转矩阵，即矩阵是V * T * 物体坐标
-mat4 World2View(Vec3f cameraPos,Vec3f lookAtPos,Vec3f upDir)
-{
-	Vec3f z = (cameraPos - lookAtPos).normalize();
-	Vec3f x = (upDir ^ z).normalize();
-	Vec3f y = (z ^ x).normalize();
-	mat4 viewMat = mat4::identity();//上面注释中的V，即旋转的3x3矩
-	for (int j = 0; j < 3; j++)
-	{
-		viewMat[0][j] = x[j];//按行排列
-		viewMat[1][j] = y[j];
-		viewMat[2][j] = z[j];
-	}
-
-	mat4 translationMat = mat4::identity();
-	for (int i = 0; i < 3; i++)
-	{
-		translationMat[i][3] = -cameraPos[i];//平移矩阵：第四列为负方向
-	}
-
-	return viewMat * translationMat;//先平移再旋转
-}
-//viewSpace变换到正交裁剪空间(即ClipSpace)
-mat4 OrthoProjection()
-{
-	mat4 orthoProjection = mat4::identity();
-	orthoProjection[0][0] = 2.0 / cameraWidth;
-	orthoProjection[1][1] = 2.0 / cameraHeight;
-	orthoProjection[2][2] = 2.0 / (cameraNearPlane - cameraFarPlane);
-	orthoProjection[2][3] = (cameraNearPlane + cameraFarPlane) / (cameraNearPlane - cameraFarPlane);
-	return orthoProjection;
-}
-
-//视口变换，[-1,1]变到屏幕的[0,width],z不变，还是[-1,1]
-mat4 viewport()
-{
-	//return Vec3f((worldPos.x + 1.0) * 0.5 * width, (worldPos.y + 1.0) * 0.5 * height, worldPos.z);
-	mat4 m = mat4::identity();
-	m[0][0] = width / 2.0;
-	m[0][3] = width / 2.0;
-	m[1][1] = height / 2.0;
-	m[1][3] = height / 2.0;
-	return m;
-}
 #include <iostream>
 int main(int argc, char** argv)
 {
@@ -257,9 +87,11 @@ int main(int argc, char** argv)
 	for (int i = 0; i < width * height; i++)
 		zBuffer[i] = -std::numeric_limits<float>::max();
 
-	mat4 world2View = World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
-	mat4 projection = OrthoProjection();
-	mat4 viewPortMat = viewport();
+	//算出our_gl中三个转换矩阵的值
+	World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
+	OrthoProjection(cameraWidth, cameraHeight, cameraNearPlane, cameraFarPlane);
+	NDC2ViewPort(width, height);
+
 
 	for (int i = 0; i < model->nfaces(); i++)
 	{
@@ -285,18 +117,18 @@ int main(int argc, char** argv)
 		vec4 v1_view = world2View * v1_homogeneous;
 		vec4 v2_view = world2View * v2_homogeneous;
 
-		vec4 v0_projection = projection * v0_view;
-		vec4 v1_projection = projection * v1_view;
-		vec4 v2_projection = projection * v2_view;
+		vec4 v0_projection = view2Projection * v0_view;
+		vec4 v1_projection = view2Projection * v1_view;
+		vec4 v2_projection = view2Projection * v2_view;
 		
 		//正交裁剪之后，xyz分量需要做一次透视除法，除以w
 		vec4 v0_division = vec4(v0_projection[0] / v0_projection[3], v0_projection[1] / v0_projection[3], v0_projection[2] / v0_projection[3], v0_projection[3]);
 		vec4 v1_division = vec4(v1_projection[0] / v1_projection[3], v1_projection[1] / v1_projection[3], v1_projection[2] / v1_projection[3], v1_projection[3]);
 		vec4 v2_division = vec4(v2_projection[0] / v2_projection[3], v2_projection[1] / v2_projection[3], v2_projection[2] / v2_projection[3], v2_projection[3]);
 
-		vec4 v0_viewPort = viewPortMat * v0_division;
-		vec4 v1_viewPort = viewPortMat * v1_division;
-		vec4 v2_viewPort = viewPortMat * v2_division;
+		vec4 v0_viewPort = ndc2ViewPort * v0_division;
+		vec4 v1_viewPort = ndc2ViewPort * v1_division;
+		vec4 v2_viewPort = ndc2ViewPort * v2_division;
 
 		Vec3f v0screenCoord = Vec3f(v0_viewPort[0], v0_viewPort[1], v0_viewPort[2]);
 		Vec3f v1screenCoord = Vec3f(v1_viewPort[0], v1_viewPort[1], v1_viewPort[2]);
@@ -320,7 +152,7 @@ int main(int argc, char** argv)
 		Vec3f triangleNormals[3] = { normal0,normal1,normal2 };//到像素里面通过重心坐标插值算每个像素的normal，算lambert
 
 		triangle(screenTriangle, triangleUV, triangleNormals,
-			zBuffer, image, TGAColor(lambert, lambert, lambert, 1));//加了zBuffer检测，lambert>0的条件可以去掉了
+			zBuffer, image, TGAColor(lambert, lambert, lambert, 1),width,height,light_dir);//加了zBuffer检测，lambert>0的条件可以去掉了
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
