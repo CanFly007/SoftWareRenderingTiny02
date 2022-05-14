@@ -120,7 +120,7 @@ void triangle(vec3* trianglePtr, IShader& shader, TGAImage& image, float* zBuffe
 				continue;//AABB盒子里这个像素的重心坐标小于0，说明这个像素在三角形外，不画
 
 			float z = A.z() * barCoord[0] + B.z() * barCoord[1] + C.z() * barCoord[2];
-			if (z > zBuffer[j + width * i])//深度测试，应该变成左手坐标系了？？？
+			if (z < zBuffer[j + width * i])//深度测试，是的！变成左手坐标系，越远z越大
 			{
 				zBuffer[j + width * i] = z;
 				TGAColor gl_Color;//接收fragment传回的最终颜色

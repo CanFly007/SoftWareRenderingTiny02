@@ -16,7 +16,7 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-Vec3f cameraPos(0, 0, -3);
+Vec3f cameraPos(0, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
 Vec3f lookAtPos(0, 0, 0);
 
 //正交相机
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 	
 	float* zBuffer = new float[width * height];
 	for (int i = 0; i < width * height; i++)
-		zBuffer[i] = -std::numeric_limits<float>::max();
+		zBuffer[i] = std::numeric_limits<float>::max();//初始zBuffer应该是无限大的值
 
 	//算出our_gl中三个转换矩阵的值
 	World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
