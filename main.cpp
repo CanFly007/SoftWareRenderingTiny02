@@ -68,7 +68,7 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 //返回 点p在三角形trianglePtr中的重心坐标
 Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 {
-	//重心坐标还是不对
+	//重心坐标还是不对 只能用作者提供的方法是正确的
 	//Vec3f A = trianglePtr[0];
 	//Vec3f B = trianglePtr[1];
 	//Vec3f C = trianglePtr[2];
@@ -77,14 +77,18 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 	//Vec3f v0 = C - A;
 	//Vec3f v1 = B - A;
 	//Vec3f v2 = P - A;
-	//float fenmu = (v0 * v0) * (v1 * v1) - (v0 * v1) * (v1 * v0);//下面三行是搬运的，没有自己在本子上画
-	//float u = ((v1 * v1) * (v2 * v0) - (v1 * v0) * (v2 * v1)) / fenmu;
-	//float v = ((v0 * v0) * (v2 * v1) - (v0 * v1) * (v2 * v0)) / fenmu;
-	//float s = 1 - u - v;
-	//if (s < 0 || u < 0 || v < 0)
-	//	return Vec3f(-1, -1, -1);
-	//return Vec3f(s, u, v);
 
+	//float dot00 = v0 * v0;//下面行是搬运的，没有自己在本子上画
+	//float dot01 = v0 * v1;
+	//float dot02 = v0 * v2;
+	//float dot11 = v1 * v1;
+	//float dot12 = v1 * v2;
+	//float invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+	//float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+	//float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+	//if (u < 0 || v < 0 || u + v >= 1)
+	//	return Vec3f(-1, -1, -1);
+	//return Vec3f(1.0 - u - v, u, v);
 
 
 	Vec3f A = trianglePtr[0];
@@ -94,12 +98,7 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 	Vec3f s[2];
 	s[0] = Vec3f(C.x - A.x, B.x - A.x, A.x - P.x);
 	s[1] = Vec3f(C.y - A.y, B.y - A.y, A.y - P.y);
-	//for (int i = 2; i--; ) 
-	//{
-	//    s[i].x = C[i] - A[i];
-	//    s[i].y = B[i] - A[i];
-	//    s[i].z = A[i] - P[i];
-	//}
+
 	Vec3f u = s[0] ^ s[1];
 	if (std::abs(u.z) > 1e-2) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
 		return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);//因为u的结果是(u,v,1)
@@ -181,8 +180,8 @@ void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float*
 				if (lambert < 0)
 					lambert = 0;
 				TGAColor diffuseColor = model->SamplerDiffseColor(uv);
-				//image.set(i, j, diffuseColor);
-				image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
+				image.set(i, j, diffuseColor);
+				//image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
 			}
 
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标
