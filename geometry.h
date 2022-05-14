@@ -35,6 +35,7 @@ template<class t>struct Vec3
 	
 	//数组重载下
 	inline t operator[](int index)const { return index == 0 ? x : index == 1 ? y : z; }
+	inline t& operator[](int index) { return index == 0 ? x : index == 1 ? y : z; }
 
 	//点积
 	inline t       operator *(const Vec3<t> & v) const { return x * v.x + y * v.y + z * v.z; }

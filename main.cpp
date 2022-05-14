@@ -66,6 +66,32 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 	}
 }
 
+struct PhongShader :public IShader
+{
+	Vec3f varying_intensity;
+
+	virtual vec3 vertex(int iface, int nthvert)
+	{
+		Vec3f pos = model->vertPos(iface, nthvert);
+		vec4 pos_homogeneous = vec4(pos[0], pos[1], pos[2], 1.0);
+		varying_intensity[nthvert] = std::max(0.0f, model->vertNormal(iface, nthvert) * light_dir);
+
+		mat4 MVP = view2Projection * world2View;
+		vec4 gl_Position = MVP * pos_homogeneous;
+		//正交裁剪之后，xyz分量需要做一次透视除法，除以w
+		vec4 NDC = vec4(gl_Position[0] / gl_Position[3], gl_Position[1] / gl_Position[3], gl_Position[2] / gl_Position[3], gl_Position[3]);
+		vec4 viewPort = ndc2ViewPort * NDC;
+		return vec3(viewPort[0],viewPort[1],viewPort[2]);
+	}
+	virtual bool fragment(Vec3f bar, TGAColor& color)//bar指这个像素的重心坐标};
+	{
+		float lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
+		lambert *= 255;
+		color = TGAColor(lambert, lambert, lambert, 255);
+		return false;
+	}
+};
+
 //.obj文件中定义的顶点坐标[-1,1]，转换到屏幕坐标[0,width]和[0,height]，z值不变，仍然是[-1,1]区间
 Vec3f World2Screen(Vec3f worldPos)
 {
@@ -93,66 +119,15 @@ int main(int argc, char** argv)
 	NDC2ViewPort(width, height);
 
 
-	for (int i = 0; i < model->nfaces(); i++)
+	PhongShader shader;
+	for (int i = 0; i < model->nfaces(); i++)//遍历faces_容器，里面每个元素代表f中一行，即3个顶点UV法线索引集合
 	{
-		std::vector<int> face = model->face(i);//face是含有三个元素的，三个点形成的面，即.obj文件中的一行
-		//v0 v1 v2是三个[-1,1]的坐标
-		Vec3f v0 = model->vert(face[0]);
-		Vec2f uv0 = model->GetUV(face[1]);
-		Vec3f normal0 = model->GetNormal(face[2]);
-
-		Vec3f v1 = model->vert(face[3]);
-		Vec2f uv1 = model->GetUV(face[4]);
-		Vec3f normal1 = model->GetNormal(face[5]);
-
-		Vec3f v2 = model->vert(face[6]);
-		Vec2f uv2 = model->GetUV(face[7]);
-		Vec3f normal2 = model->GetNormal(face[8]);
-
-		vec4 v0_homogeneous = vec4(v0[0], v0[1], v0[2], 1.0);//大写的Vec3类转到小写的类，之后可以统一成一个类
-		vec4 v1_homogeneous = vec4(v1[0], v1[1], v1[2], 1.0);
-		vec4 v2_homogeneous = vec4(v2[0], v2[1], v2[2], 1.0);
-
-		vec4 v0_view = world2View * v0_homogeneous;
-		vec4 v1_view = world2View * v1_homogeneous;
-		vec4 v2_view = world2View * v2_homogeneous;
-
-		vec4 v0_projection = view2Projection * v0_view;
-		vec4 v1_projection = view2Projection * v1_view;
-		vec4 v2_projection = view2Projection * v2_view;
-		
-		//正交裁剪之后，xyz分量需要做一次透视除法，除以w
-		vec4 v0_division = vec4(v0_projection[0] / v0_projection[3], v0_projection[1] / v0_projection[3], v0_projection[2] / v0_projection[3], v0_projection[3]);
-		vec4 v1_division = vec4(v1_projection[0] / v1_projection[3], v1_projection[1] / v1_projection[3], v1_projection[2] / v1_projection[3], v1_projection[3]);
-		vec4 v2_division = vec4(v2_projection[0] / v2_projection[3], v2_projection[1] / v2_projection[3], v2_projection[2] / v2_projection[3], v2_projection[3]);
-
-		vec4 v0_viewPort = ndc2ViewPort * v0_division;
-		vec4 v1_viewPort = ndc2ViewPort * v1_division;
-		vec4 v2_viewPort = ndc2ViewPort * v2_division;
-
-		Vec3f v0screenCoord = Vec3f(v0_viewPort[0], v0_viewPort[1], v0_viewPort[2]);
-		Vec3f v1screenCoord = Vec3f(v1_viewPort[0], v1_viewPort[1], v1_viewPort[2]);
-		Vec3f v2screenCoord = Vec3f(v2_viewPort[0], v2_viewPort[1], v2_viewPort[2]);
-
-		//转换到[0,width] [0,height]屏幕坐标
-		//Vec3f v0screenCoord = World2Screen(v0);
-		//Vec3f v1screenCoord = World2Screen(v1);
-		//Vec3f v2screenCoord = World2Screen(v2);
-		Vec3f screenTriangle[3] = { v0screenCoord,v1screenCoord,v2screenCoord };
-
-		//用面法线代替顶点法线插值到像素，画每个三角形的颜色
-		Vec3f faceNormal = (v1 - v0) ^ (v2 - v0);//两个向量的叉积，既是垂直于他们的法向量
-		//注意：faceNormal如果叉积左右换一下，算出来的normal方向也会换180度，通过输出重心坐标可以看v0 v1 v2的顺序是顺时针的
-		faceNormal.normalize();
-		float lambert = faceNormal * light_dir * 255;//整个三角形面是一个颜色
-
-		//获得这个三角形三个顶点的uv值
-		Vec2f triangleUV[3] = {uv0,uv1,uv2};
-
-		Vec3f triangleNormals[3] = { normal0,normal1,normal2 };//到像素里面通过重心坐标插值算每个像素的normal，算lambert
-
-		triangle(screenTriangle, triangleUV, triangleNormals,
-			zBuffer, image, TGAColor(lambert, lambert, lambert, 1),width,height,light_dir);//加了zBuffer检测，lambert>0的条件可以去掉了
+		vec3 screen_coords[3];//[3]表示一个三角形有3个顶点 vec3表示每个顶点的xyz坐标，xy是屏幕坐标[0,width],z是NDC坐标[-1,1]
+		for (int j = 0; j < 3; j++)//face中3个顶点对应哪一个
+		{
+			screen_coords[j] = shader.vertex(i, j);
+		}
+		triangle(screen_coords, shader, image, zBuffer, width);//画这个三角形
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image

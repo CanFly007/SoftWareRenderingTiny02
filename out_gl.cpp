@@ -90,6 +90,48 @@ Vec3f barycentric(Vec3f* trianglePtr, Vec3f P)
 }
 
 //传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
+//每个要画的像素调用shader.fragment
+void triangle(vec3* trianglePtr, IShader& shader, TGAImage& image, float* zBuffer, const int width)
+{
+	vec3 A = trianglePtr[0];
+	vec3 B = trianglePtr[1];
+	vec3 C = trianglePtr[2];
+
+	Vec2i rectMin = Vec2i(std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+	Vec2i rectMax = Vec2i(0,0);
+	for (int i = 0; i < 3; i++)
+	{
+		rectMin.x = (int)(trianglePtr[i].x() < rectMin.x ? trianglePtr[i].x() : rectMin.x);
+		rectMin.y = (int)(trianglePtr[i].y() < rectMin.y ? trianglePtr[i].y() : rectMin.y);
+		rectMax.x = (int)(trianglePtr[i].x() > rectMax.x ? trianglePtr[i].x() : rectMax.x);
+		rectMax.y = (int)(trianglePtr[i].y() > rectMax.y ? trianglePtr[i].y() : rectMax.y);
+	}
+
+	Vec3f curPixel;//设成int传参的,AABB内部填充的
+	Vec3f barCoord;//这个像素在三个点的重心坐标
+	Vec3f trianglePtrV3f[3] = { Vec3f(A[0],A[1],A[2]),Vec3f(B[0],B[1],B[2]),Vec3f(C[0],C[1],C[2]) };//vec3 -> Vec3f
+	for (int i = rectMin.x; i <= rectMax.x; i++)
+	{
+		for (int j = rectMin.y; j <= rectMax.y; j++)
+		{
+			curPixel = Vec3f(i, j, 1.0);//重心坐标算不对？难道问题出在z=1？
+			barCoord = barycentric(trianglePtrV3f, curPixel);//这个像素的重心坐标
+			if (barCoord.x < 0 || barCoord.y < 0 || barCoord.z < 0)
+				continue;//AABB盒子里这个像素的重心坐标小于0，说明这个像素在三角形外，不画
+
+			float z = A.z() * barCoord[0] + B.z() * barCoord[1] + C.z() * barCoord[2];
+			if (z > zBuffer[j + width * i])//深度测试，应该变成左手坐标系了？？？
+			{
+				zBuffer[j + width * i] = z;
+				TGAColor gl_Color;//接收fragment传回的最终颜色
+				bool clip = shader.fragment(barCoord, gl_Color);
+				image.set(i, j, gl_Color);
+			}
+		}
+	}
+}
+
+//传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
 void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float* zBuffer, TGAImage& image, TGAColor color, const int width, const int height, Vec3f light_dir)
 {
 	Vec3f A = trianglePtr[0];
@@ -133,7 +175,8 @@ void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float*
 					lambert = 0;
 				//TGAColor diffuseColor = model->SamplerDiffseColor(uv);
 				//image.set(i, j, diffuseColor);
-				image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
+				//image.set(i, j, TGAColor(lambert, lambert, lambert, 1));//注释掉上面这行，使用lambert传来的color来算整个面的color
+				image.set(i, j, color);
 			}
 
 			//image.set(i, j, TGAColor(barCoord.x * 255, barCoord.y * 255, barCoord.z * 255, 1));//输出每个像素的重心坐标

@@ -58,7 +58,7 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 				indexNormal--;
 				f.push_back(indexNormal);
 			}
-			faces_.push_back(f);//f是3个元素，组成一个面，faces是所有的面集合,faces中每个元素即.obj中每一行
+			faces_.push_back(f);//f是9个元素，组成一个面，faces是所有的面集合,faces中每个元素即.obj中每一行
 		}
 	}
 	std::cerr << "# v# " << verts_.size() << " vt# " << uvs.size() << " f# " << faces_.size() << std::endl;
@@ -88,6 +88,26 @@ Vec3f Model::vert(int i)
 {
 	return verts_[i];
 }
+//iface应该是遍历所有faces容器中的每一个元素，nthvert表示在这个元素中，第几个顶点数据（这个元素包含3个点)
+//返回对应索引下，该顶点Position
+Vec3f Model::vertPos(int iface, int nthvert)
+{
+	std::vector<int> face = faces_[iface];//24/1/24 25/2/25 26/3/26  face中存储了这9个int元素
+	//Position记录在0 3 6索引
+	int index = 0 + nthvert * 3;
+	int vIndex = face[index];//在vIndex中找到对应点
+	Vec3f pos = verts_[vIndex];
+	return pos;
+}
+Vec3f Model::vertNormal(int iface, int nthvert)
+{
+	std::vector<int> face = faces_[iface];
+	int index = 2 + nthvert * 3;//法线数据从2开始
+	int normalIndex = face[index];
+	Vec3f normal = normals[normalIndex];
+	return normal;
+}
+
 /// <summary>
 /// 根据face中提供的索引index，找到uvs容器中对应的该点的uv值[0,1]
 /// </summary>
