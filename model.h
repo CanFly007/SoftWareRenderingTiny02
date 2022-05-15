@@ -23,6 +23,7 @@ public:
 	int nfaces();
 	Vec3f vert(int i);
 	Vec3f vertPos(int iface, int nthvert);
+	Vec2f vertUV(int iface, int nthvert);
 	Vec3f vertNormal(int iface, int nthvert);
 
 	std::vector<int> face(int idx);

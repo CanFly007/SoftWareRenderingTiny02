@@ -16,12 +16,12 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-Vec3f cameraPos(0, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
+Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
 Vec3f lookAtPos(0, 0, 0);
 
 //正交相机
-float cameraWidth = 3.0;
-float cameraHeight = 3.0;
+float cameraWidth = 2.5;
+float cameraHeight = 2.5;
 float cameraFarPlane = 5.0;
 float cameraNearPlane = 1.0;
 
@@ -69,12 +69,16 @@ void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 struct PhongShader :public IShader
 {
 	Vec3f varying_intensity;
+	Vec2f varying_uv[3];//三个点分别的uv值
 
+	//iface是从0遍历到faces_最后，nthvert是内循环，范围是[0,3)
 	virtual vec3 vertex(int iface, int nthvert)
 	{
 		Vec3f pos = model->vertPos(iface, nthvert);
 		vec4 pos_homogeneous = vec4(pos[0], pos[1], pos[2], 1.0);
 		varying_intensity[nthvert] = std::max(0.0f, model->vertNormal(iface, nthvert) * light_dir);
+		
+		varying_uv[nthvert] = model->vertUV(iface, nthvert);
 
 		mat4 MVP = view2Projection * world2View;
 		vec4 gl_Position = MVP * pos_homogeneous;
@@ -86,8 +90,10 @@ struct PhongShader :public IShader
 	virtual bool fragment(Vec3f bar, TGAColor& color)//bar指这个像素的重心坐标};
 	{
 		float lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
-		lambert *= 255;
-		color = TGAColor(lambert, lambert, lambert, 255);
+
+		Vec2f uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
+		color = model->SamplerDiffseColor(uv);
+		color = TGAColor(color.r * lambert, color.g * lambert, color.b * lambert, color.a);
 		return false;
 	}
 };

@@ -99,6 +99,15 @@ Vec3f Model::vertPos(int iface, int nthvert)
 	Vec3f pos = verts_[vIndex];
 	return pos;
 }
+Vec2f Model::vertUV(int iface, int nthvert)
+{
+	std::vector<int> face = faces_[iface];
+	int index = 1 + nthvert * 3;
+	int uvIndex = face[index];
+	Vec2f uv = uvs[uvIndex];
+	return uv;
+}
+
 Vec3f Model::vertNormal(int iface, int nthvert)
 {
 	std::vector<int> face = faces_[iface];
