@@ -64,6 +64,8 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 	std::cerr << "# v# " << verts_.size() << " vt# " << uvs.size() << " f# " << faces_.size() << std::endl;
 	
 	load_texture(filename, "_diffuse.tga", diffuseMap);
+	load_texture(filename, "_nm.tga", normalMap);
+	load_texture(filename, "_spec.tga", specularMap);
 }
 
 Model::~Model()
@@ -174,6 +176,17 @@ TGAColor Model::SamplerDiffseColor(Vec2f uv)
 	int diffuseMapW = diffuseMap.get_width();
 	int diffuseMapH = diffuseMap.get_height();
 	return diffuseMap.get((int)(diffuseMapW * uv.u), (int)(diffuseMapH * uv.v));
+}
 
-	//return diffuseMap.get(uv.u, uv.v);//貌似不用乘以width和height，get里面已经包含
+TGAColor Model::SamplerNormalColor(Vec2f uv)
+{
+	int width = normalMap.get_width();
+	int height = normalMap.get_height();
+	return normalMap.get((int)(width * uv.u), (int)(height * uv.v));
+}
+TGAColor Model::SamplerSpcularColor(Vec2f uv)
+{
+	int width = specularMap.get_width();
+	int height = specularMap.get_height();
+	return specularMap.get((int)(width * uv.u), (int)(height * uv.v));
 }

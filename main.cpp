@@ -71,11 +71,14 @@ struct PhongShader :public IShader
 	Vec3f varying_intensity;
 	Vec2f varying_uv[3];//三个点分别的uv值
 
+	Vec3f varying_WorldPos[3];
+
 	//iface是从0遍历到faces_最后，nthvert是内循环，范围是[0,3)
 	virtual vec3 vertex(int iface, int nthvert)
 	{
 		Vec3f pos = model->vertPos(iface, nthvert);
 		vec4 pos_homogeneous = vec4(pos[0], pos[1], pos[2], 1.0);
+		varying_WorldPos[nthvert] = pos;
 		varying_intensity[nthvert] = std::max(0.0f, model->vertNormal(iface, nthvert) * light_dir);
 		
 		varying_uv[nthvert] = model->vertUV(iface, nthvert);
@@ -89,12 +92,47 @@ struct PhongShader :public IShader
 	}
 	virtual bool fragment(Vec3f bar, TGAColor& color)//bar指这个像素的重心坐标};
 	{
-		float lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
+		float lambert;
+		lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
 		Vec2f uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
+		Vec3f worldPos = varying_WorldPos[0] * bar[0] + varying_WorldPos[1] * bar[1] + varying_WorldPos[2] * bar[2];
 
 		//上面两部插值操作，一个是插值三个顶点的float数据，一个是插值三个顶点的uv，在三角形遍历阶段已经由硬件完成，不用在fragment中完成
-		color = model->SamplerDiffseColor(uv);
-		color = TGAColor(color.r * lambert, color.g * lambert, color.b * lambert, color.a);
+		TGAColor normalMap = model->SamplerNormalColor(uv);
+		//解析采样到的normalMap贴图，这张是世界坐标表示的（非切线空间）
+		Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
+		normal = normal.normalize();
+		float a0 = light_dir[0];
+		float a1 = light_dir[1];
+		float a2 = light_dir[2];
+		Vec3f worldLightDir = Vec3f(a0,a1,a2);//.normalize();
+		float ndotL = std::max(0.f, normal * worldLightDir);
+
+		TGAColor albedo = model->SamplerDiffseColor(uv);
+		Vec3f diffuse = Vec3f(albedo.r * ndotL, albedo.g * ndotL, albedo.b * ndotL);
+		//lambert = ndotL;
+
+		TGAColor specMap = model->SamplerSpcularColor(uv);//这张图算成高光幂的图
+		float gloss = specMap.r;
+		//Vec3f test1Dir = Vec3f(cameraPos.x, cameraPos.y, cameraPos.z);
+		Vec3f worldViewDir = cameraPos - worldPos;
+		worldViewDir.normalize();
+		Vec3f reflectDir = -worldLightDir + normal * (worldLightDir * normal) * 2;
+		reflectDir.normalize();
+		float rdotV = reflectDir * worldViewDir;
+		Vec3f specularColor = Vec3f(1, 1, 1);//高光颜色
+		//点积做底，gloss做幂。想象x平方曲线，再想象x三次方曲线（即只有当反射方向和观察方向很靠近时（点积接近1），256幂次方结果才靠近1，否则幂次方的值很小）
+		Vec3f specular = specularColor * pow(std::max(0.f, rdotV), gloss);
+		specular = specular * 255;
+
+		//worldViewDir = worldViewDir * 255;
+		Vec3f ambient = Vec3f(5.0, 5.0, 5.0);
+		Vec3f result = ambient + diffuse;// +specular;
+		color = TGAColor(result[0], result[1], result[2], albedo.a);
+
+		//color = TGAColor(worldViewDir.x, worldViewDir.y, worldViewDir.z, 255);
+		//color = model->SamplerDiffseColor(uv);
+		//color = TGAColor(color.r * lambert, color.g * lambert, color.b * lambert, color.a);
 		return false;
 	}
 };
