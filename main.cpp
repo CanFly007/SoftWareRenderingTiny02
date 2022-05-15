@@ -90,8 +90,9 @@ struct PhongShader :public IShader
 	virtual bool fragment(Vec3f bar, TGAColor& color)//bar指这个像素的重心坐标};
 	{
 		float lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
-
 		Vec2f uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
+
+		//上面两部插值操作，一个是插值三个顶点的float数据，一个是插值三个顶点的uv，在三角形遍历阶段已经由硬件完成，不用在fragment中完成
 		color = model->SamplerDiffseColor(uv);
 		color = TGAColor(color.r * lambert, color.g * lambert, color.b * lambert, color.a);
 		return false;
