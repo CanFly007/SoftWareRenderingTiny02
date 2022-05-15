@@ -20,7 +20,8 @@ struct IShader
 	virtual bool fragment(Vec3f bar, TGAColor& color) = 0;//bar指这个像素的重心坐标
 };
 
-void triangle(vec3* trianglePtr, IShader& shader, TGAImage& image, float* zBuffer, const int width);
+void triangle(vec3* trianglePtr, IShader& shader, TGAImage& image, float* zBuffer, const int width);//float数组存储深度方式
+void triangle(vec3* trianglePtr, IShader& shader, TGAImage& image, TGAImage& zBuffer);//纹理存储深度方式
 //传入的是屏幕空间坐标,构建三角形(trianglePtr)的包围盒。逐一判断包围盒里面每个像素，是否在三角形内（重心坐标判断法）
 void triangle(Vec3f* trianglePtr, Vec2f* triangleUVPtr, Vec3f* normalPtr, float* zBuffer, TGAImage& image, TGAColor colorconst, int width, const int height,  Vec3f light_dir);
 

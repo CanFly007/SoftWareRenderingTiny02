@@ -22,7 +22,7 @@ Vec3f lookAtPos(0, 0, 0);
 //正交相机
 float cameraWidth = 3.0;
 float cameraHeight = 3.0;
-float cameraFarPlane = 100.0;
+float cameraFarPlane = 5.0;
 float cameraNearPlane = 1.0;
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
@@ -109,9 +109,17 @@ int main(int argc, char** argv)
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
 	
-	float* zBuffer = new float[width * height];
+	//纹理存深度贴图方式，far平面过远时可能会引发z-Fight，TODO压缩到4个通道
+	TGAImage zBuffer(width, height, TGAImage::RGB);
+	TGAColor white = TGAColor(255, 255, 255, 255);
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			zBuffer.set(i, j, white);
+
+	//float精度存储方式，用来比较眼睛部位是否是Z-Fight引起的
+	float* zBufferFloat = new float[width * height];
 	for (int i = 0; i < width * height; i++)
-		zBuffer[i] = std::numeric_limits<float>::max();//初始zBuffer应该是无限大的值
+		zBufferFloat[i] = std::numeric_limits<float>::max();//初始zBuffer应该是无限大的值
 
 	//算出our_gl中三个转换矩阵的值
 	World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
@@ -127,10 +135,14 @@ int main(int argc, char** argv)
 		{
 			screen_coords[j] = shader.vertex(i, j);
 		}
-		triangle(screen_coords, shader, image, zBuffer, width);//画这个三角形
+		//画这个三角形
+		//triangle(screen_coords, shader, image, zBufferFloat, width);//使用float数组存储深度
+		triangle(screen_coords, shader, image, zBuffer);//使用纹理存储深度
 	}
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	image.write_tga_file("output.tga");
+	zBuffer.flip_vertically();
+	zBuffer.write_tga_file("zBuffer.tga");
 	return 0;
 }
