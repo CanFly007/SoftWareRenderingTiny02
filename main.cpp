@@ -149,7 +149,8 @@ int main(int argc, char** argv)
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
-		model = new Model("obj/african_head.obj");
+		//model = new Model("obj/african_head.obj");
+		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
