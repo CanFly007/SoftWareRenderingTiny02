@@ -16,8 +16,8 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-//Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
-Vec3f cameraPos(0, 0, 3);
+Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
+//Vec3f cameraPos(0, 0, 3);
 Vec3f lookAtPos(0, 0, 0);
 
 //正交相机
@@ -105,6 +105,29 @@ struct PhongShader :public IShader
 
 		//上面两部插值操作，一个是插值三个顶点的float数据，一个是插值三个顶点的uv，在三角形遍历阶段已经由硬件完成，不用在fragment中完成
 		
+		//作者算法：效果也不对 法线算出来都接近(0,0,1)了
+		//Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
+		//Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
+		//mat3 A;
+		//A[0] = vec3(AB.x, AB.y, AB.z);
+		//A[1] = vec3(AC.x, AC.y, AC.z);
+		//A[2] = vec3(worldNormal.x, worldNormal.y, worldNormal.z);
+		//mat3 AI = A.inverse();//不知道是求逆还是求转置
+		//vec3 i = AI * vec3(varying_uv[1].x - varying_uv[0].x, varying_uv[2].x - varying_uv[0].x, 0);
+		//vec3 j = AI * vec3(varying_uv[1].y - varying_uv[0].y, varying_uv[2].y - varying_uv[0].y, 0);
+		//i.normalize();
+		//j.normalize();
+		//mat3 B;
+		//B[0][0] = i.x(); B[0][1] = j.x(); B[0][2] = worldNormal.x;
+		//B[1][0] = i.y(); B[1][1] = j.y(); B[1][2] = worldNormal.y;
+		//B[2][0] = i.z(); B[2][1] = j.z(); B[2][2] = worldNormal.z;
+		//mat3 C = B.transpose();
+		//TGAColor normalMap = model->SamplerNormalColor(uv);
+		//Vec3f tangentNormal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
+		//vec3 normalT = vec3(tangentNormal.x, tangentNormal.y, tangentNormal.z);
+		//vec3 normalW = (C * normalT).normalize();
+		//Vec3f normal = Vec3f(normalW.x(), normalW.y(), normalW.z());
+
 		//1、构建TBN坐标系，在世界空间表示TBN向量，然后按列排列即得到 TangentSpace -> WorldSpace 的矩阵
 		Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
 		Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
