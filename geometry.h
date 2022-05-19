@@ -31,6 +31,10 @@ template<class t>struct Vec3
 	inline Vec3<t> operator +(const Vec3<t> & v) const { return Vec3<t>(x + v.x, y + v.y, z + v.z); }
 	inline Vec3<t> operator -(const Vec3<t> & v) const { return Vec3<t>(x - v.x, y - v.y, z - v.z); }
 	inline Vec3<t> operator *(float f)          const { return Vec3<t>(x * f, y * f, z * f); }
+	friend Vec3<t> operator *(float f, const Vec3<t>& v)//定义float左乘向量
+	{
+		return v * f;
+	}
 	inline Vec3<t> operator /(float f)			const { return Vec3<t>(x / f, y / f, z / f); }
 	inline Vec3<t>& operator -() { x = -x; y = -y; z = -z; return *this; }
 	

@@ -16,7 +16,8 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
-Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
+//Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
+Vec3f cameraPos(0, 0, 3);
 Vec3f lookAtPos(0, 0, 0);
 
 //正交相机
@@ -72,6 +73,7 @@ struct PhongShader :public IShader
 	Vec2f varying_uv[3];//三个点分别的uv值
 
 	Vec3f varying_WorldPos[3];
+	Vec3f varying_WorldNormal[3];
 
 	//iface是从0遍历到faces_最后，nthvert是内循环，范围是[0,3)
 	virtual vec3 vertex(int iface, int nthvert)
@@ -80,6 +82,7 @@ struct PhongShader :public IShader
 		vec4 pos_homogeneous = vec4(pos[0], pos[1], pos[2], 1.0);
 		varying_WorldPos[nthvert] = pos;
 		varying_intensity[nthvert] = std::max(0.0f, model->vertNormal(iface, nthvert) * light_dir);
+		varying_WorldNormal[nthvert] = model->vertNormal(iface, nthvert);
 		
 		varying_uv[nthvert] = model->vertUV(iface, nthvert);
 
@@ -96,12 +99,55 @@ struct PhongShader :public IShader
 		lambert = varying_intensity * bar;//varying_intensity是一个Vec3f数组代表三个点分别的lambert值，用该像素重心坐标对应ABC权重分别乘以对应点的intensity
 		Vec2f uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
 		Vec3f worldPos = varying_WorldPos[0] * bar[0] + varying_WorldPos[1] * bar[1] + varying_WorldPos[2] * bar[2];
+		
+		Vec3f worldNormal = varying_WorldNormal[0] * bar[0] + varying_WorldNormal[1] * bar[1] + varying_WorldNormal[2] * bar[2];//由三个顶点自带法线的重心权重算出 
+		worldNormal.normalize();
 
 		//上面两部插值操作，一个是插值三个顶点的float数据，一个是插值三个顶点的uv，在三角形遍历阶段已经由硬件完成，不用在fragment中完成
+		
+		//1、构建TBN坐标系，在世界空间表示TBN向量，然后按列排列即得到 TangentSpace -> WorldSpace 的矩阵
+		Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
+		Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
+		float deltaU0 = varying_uv[1].u - varying_uv[0].u;//AB向量的U和V差
+		float deltaV0 = varying_uv[1].v - varying_uv[0].v;
+		float deltaU1 = varying_uv[2].u - varying_uv[0].u;//AC向量U和V的差
+		float deltaV1 = varying_uv[2].v - varying_uv[0].v;
+
+		float determinant = 1.0 / (deltaU0 * deltaV1 - deltaV0 * deltaU1);//详见印象笔记切线空间
+		Vec3f worldSpaceT = determinant * (deltaV1 * AB - deltaU1 * AC);
+		Vec3f worldSpaceB = determinant * (-deltaV0 * AB + deltaU0 * AC);
+		
+		//Tangent和Binormal的归一化公式不知为何，详见印象笔记
+		worldSpaceT = worldSpaceT - (worldSpaceT * worldNormal) * worldNormal;
+		worldSpaceT.normalize();//一定记得归一化
+		worldSpaceB = worldSpaceB - (worldSpaceB * worldNormal) * worldNormal - (worldSpaceB * worldSpaceT) * worldSpaceT;
+		worldSpaceB.normalize();
+
+		//可以通过TB叉乘，也可以用该像素的normal值（三个顶点normal的重心权重）,试着比较两者是否一致？
+		Vec3f worldNormalDebug = worldNormal.normalize();
+		Vec3f worldNormalCross = (worldSpaceT ^ worldSpaceB).normalize();//Debug精度差不多一致
+
+		//2、TBN按列排，构成Tangent2World矩阵
+		mat3 tangent2World;
+		tangent2World[0][0] = worldSpaceT.x; tangent2World[0][1] = worldSpaceB.x; tangent2World[0][2] = worldNormalCross.x;
+		tangent2World[1][0] = worldSpaceT.y; tangent2World[1][1] = worldSpaceB.y; tangent2World[1][2] = worldNormalCross.y;
+		tangent2World[2][0] = worldSpaceT.z; tangent2World[2][1] = worldSpaceB.z; tangent2World[2][2] = worldNormalCross.z;
+
 		TGAColor normalMap = model->SamplerNormalColor(uv);
+		//解析采样到的normalMap贴图，这张是切线空间坐标表示的
+		//Unity中的UnpackNormal函数是把[0,1]变成[-1,1]，这里多一步从[0,255]变成[0,1]
+		vec3 tangentNormal = vec3(normalMap.r / 255.0, normalMap.g / 255.0, normalMap.b / 255.0); 
+		tangentNormal = tangentNormal * 2.0 - 1.0;
+		//tangentNormal.normalize();
+		vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
+		Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
+		normal.normalize();
+
 		//解析采样到的normalMap贴图，这张是世界坐标表示的（非切线空间）
-		Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
-		normal = normal.normalize();
+		//Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
+		//normal = normal.normalize();
+
+		//世界空间worldNormal * worldLightDir
 		float a0 = light_dir[0];
 		float a1 = light_dir[1];
 		float a2 = light_dir[2];
@@ -129,6 +175,7 @@ struct PhongShader :public IShader
 		Vec3f ambient = Vec3f(5.0, 5.0, 5.0);
 		Vec3f result = ambient + diffuse;// +specular;
 		color = TGAColor(result[0], result[1], result[2], albedo.a);
+		//color = TGAColor(255.0, 255.0, 0.0, 255.0);
 
 		//color = TGAColor(worldViewDir.x, worldViewDir.y, worldViewDir.z, 255);
 		//color = model->SamplerDiffseColor(uv);
@@ -149,8 +196,9 @@ int main(int argc, char** argv)
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
-		//model = new Model("obj/african_head.obj");
-		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
+		model = new Model("obj/african_head/african_head.obj");
+		//model = new Model("obj/diablo3_pose/diablo3_pose.obj");
+		//model = new Model("obj/test.obj");
 
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图

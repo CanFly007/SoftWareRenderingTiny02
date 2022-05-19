@@ -19,6 +19,8 @@ public:
 	vec3& operator+=(const vec3& v);
 	vec3& operator*=(const float t);
 	vec3& operator/=(const float t);
+	vec3 operator*(const float t)const;
+	vec3 operator-(const float t)const;
 
 	float norm_squared() const;
 	float norm() const;
@@ -39,6 +41,7 @@ public:
 	vec3& operator[](int i);
 	vec3 operator[](int i) const;
 	mat3 operator/(float t)const;
+	vec3 operator*(vec3 v3)const;
 
 	static mat3 identity();
 	mat3 transpose() const;

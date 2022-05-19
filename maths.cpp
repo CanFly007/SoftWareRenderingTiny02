@@ -31,6 +31,16 @@ vec3& vec3::operator/=(const float t)
 	e[2] /= t;
 	return *this;
 }
+vec3 vec3::operator*(const float t)const
+{
+	vec3 result = vec3(e[0] * t, e[1] * t, e[2] * t);
+	return result;
+}
+vec3 vec3::operator-(const float t)const
+{
+	vec3 result = vec3(e[0] - t, e[1] - t, e[2] - t);
+	return result;
+}
 float vec3::norm_squared() const
 {
 	return e[0] * e[0] + e[1] * e[1] + e[2] * e[2];
@@ -72,6 +82,14 @@ mat3 mat3::operator/(float t)const
 		for (int j = 0; j < 3; j++)
 			m[i][j] = (*this)[i][j] / t;
 	return m;
+}
+vec3 mat3::operator*(vec3 v3)const
+{
+	vec3 result;
+	for (int i = 0; i < 3; i++)
+		for (int k = 0; k < 3; k++)
+			result[i] += (*this)[i][k] * v3[k];
+	return result;
 }
 
 mat3 mat3::identity()
