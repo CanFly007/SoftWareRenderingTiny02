@@ -64,8 +64,8 @@ Model::Model(const char* filename) :verts_(), faces_(), uvs()
 	std::cerr << "# v# " << verts_.size() << " vt# " << uvs.size() << " f# " << faces_.size() << std::endl;
 	
 	load_texture(filename, "_diffuse.tga", diffuseMap);
-	//load_texture(filename, "_nm.tga", normalMap);//世界空间
-	load_texture(filename, "_nm_tangent.tga", normalMap);//切线空间
+	load_texture(filename, "_nm.tga", normalMap);//世界空间
+	//load_texture(filename, "_nm_tangent.tga", normalMap);//切线空间
 	load_texture(filename, "_spec.tga", specularMap);
 }
 

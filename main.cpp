@@ -136,16 +136,16 @@ struct PhongShader :public IShader
 		TGAColor normalMap = model->SamplerNormalColor(uv);
 		//解析采样到的normalMap贴图，这张是切线空间坐标表示的
 		//Unity中的UnpackNormal函数是把[0,1]变成[-1,1]，这里多一步从[0,255]变成[0,1]
-		vec3 tangentNormal = vec3(normalMap.r / 255.0, normalMap.g / 255.0, normalMap.b / 255.0); 
-		tangentNormal = tangentNormal * 2.0 - 1.0;
-		//tangentNormal.normalize();
-		vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
-		Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
-		normal.normalize();
+		//vec3 tangentNormal = vec3(normalMap.r / 255.0, normalMap.g / 255.0, normalMap.b / 255.0); 
+		//tangentNormal = tangentNormal * 2.0 - 1.0;
+		////tangentNormal.normalize();
+		//vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
+		//Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
+		//normal.normalize();
 
 		//解析采样到的normalMap贴图，这张是世界坐标表示的（非切线空间）
-		//Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
-		//normal = normal.normalize();
+		Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
+		normal = normal.normalize();
 
 		//世界空间worldNormal * worldLightDir
 		float a0 = light_dir[0];
