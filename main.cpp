@@ -15,7 +15,7 @@ Model* model = NULL;
 const int width = 800;
 const int height = 800;
 
-Vec3f light_dir(0, 0, 1); //右手坐标系，表示在该点为起点的光照，非来自方向
+Vec3f light_dir(1, 1, 0); //右手坐标系，表示在该点为起点的光照，非来自方向
 Vec3f cameraPos(2, 0, 3); //obj在原点，摄像机看向原点就能看到脸部
 //Vec3f cameraPos(0, 0, 3);
 Vec3f lookAtPos(0, 0, 0);
@@ -23,8 +23,10 @@ Vec3f lookAtPos(0, 0, 0);
 //正交相机
 float cameraWidth = 2.5;
 float cameraHeight = 2.5;
-float cameraFarPlane = 5.0;
-float cameraNearPlane = 1.0;
+float cameraFarPlane = 15.0;
+float cameraNearPlane = 0.1;
+
+float* shadowmapZBuffer = NULL;
 
 void line(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color)
 {
@@ -75,6 +77,10 @@ struct PhongShader :public IShader
 	Vec3f varying_WorldPos[3];
 	Vec3f varying_WorldNormal[3];
 
+	mat4 uniform_World2LightMatrix;
+
+	PhongShader(mat4 world2LightMatrix) :uniform_World2LightMatrix(world2LightMatrix) {}
+
 	//iface是从0遍历到faces_最后，nthvert是内循环，范围是[0,3)
 	virtual vec3 vertex(int iface, int nthvert)
 	{
@@ -105,6 +111,15 @@ struct PhongShader :public IShader
 
 		//上面两部插值操作，一个是插值三个顶点的float数据，一个是插值三个顶点的uv，在三角形遍历阶段已经由硬件完成，不用在fragment中完成
 		
+		//阴影
+		vec4 worldPosHomogeneous = vec4(worldPos.x, worldPos.y, worldPos.z, 1.0);
+		vec4 lightSpaceCoords = uniform_World2LightMatrix * worldPosHomogeneous;//xy是[0,width] z是[-1,1]
+		//这里通过shadowmapZBuffer数组查找，而不是shadowmap贴图查找。所以z的范围还是[-1,1]左手坐标系
+		int index = int(lightSpaceCoords.x()) + int(lightSpaceCoords.y()) * width;
+		float shadow = shadowmapZBuffer[index] > lightSpaceCoords.z();
+
+#pragma region 切线计算，然后构建空间算法
+
 		//作者算法：效果也不对 法线算出来都接近(0,0,1)了
 		//Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
 		//Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
@@ -139,7 +154,7 @@ struct PhongShader :public IShader
 		float determinant = 1.0 / (deltaU0 * deltaV1 - deltaV0 * deltaU1);//详见印象笔记切线空间
 		Vec3f worldSpaceT = determinant * (deltaV1 * AB - deltaU1 * AC);
 		Vec3f worldSpaceB = determinant * (-deltaV0 * AB + deltaU0 * AC);
-		
+
 		//Tangent和Binormal的归一化公式不知为何，详见印象笔记
 		worldSpaceT = worldSpaceT - (worldSpaceT * worldNormal) * worldNormal;
 		worldSpaceT.normalize();//一定记得归一化
@@ -165,6 +180,7 @@ struct PhongShader :public IShader
 		//vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
 		//Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
 		//normal.normalize();
+#pragma endregion
 
 		//解析采样到的normalMap贴图，这张是世界坐标表示的（非切线空间）
 		Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
@@ -181,6 +197,7 @@ struct PhongShader :public IShader
 		Vec3f diffuse = Vec3f(albedo.r * ndotL, albedo.g * ndotL, albedo.b * ndotL);
 		//lambert = ndotL;
 
+#pragma region 高光Specular
 		TGAColor specMap = model->SamplerSpcularColor(uv);//这张图算成高光幂的图
 		float gloss = specMap.r;
 		//Vec3f test1Dir = Vec3f(cameraPos.x, cameraPos.y, cameraPos.z);
@@ -193,16 +210,38 @@ struct PhongShader :public IShader
 		//点积做底，gloss做幂。想象x平方曲线，再想象x三次方曲线（即只有当反射方向和观察方向很靠近时（点积接近1），256幂次方结果才靠近1，否则幂次方的值很小）
 		Vec3f specular = specularColor * pow(std::max(0.f, rdotV), gloss);
 		specular = specular * 255;
+#pragma endregion
 
-		//worldViewDir = worldViewDir * 255;
 		Vec3f ambient = Vec3f(5.0, 5.0, 5.0);
 		Vec3f result = ambient + diffuse;// +specular;
+		result = result * shadow;
 		color = TGAColor(result[0], result[1], result[2], albedo.a);
-		//color = TGAColor(255.0, 255.0, 0.0, 255.0);
+		return false;
+	}
+};
 
-		//color = TGAColor(worldViewDir.x, worldViewDir.y, worldViewDir.z, 255);
-		//color = model->SamplerDiffseColor(uv);
-		//color = TGAColor(color.r * lambert, color.g * lambert, color.b * lambert, color.a);
+struct ShadowMapShader :IShader //光源的shadowmap图
+{
+	float viewPortZ[3];//z在视图空间范围，[-1,1]
+
+	virtual vec3 vertex(int iface, int nthvert)//三角形每个顶点调用一次，每个三角形调用三次
+	{
+		Vec3f pos = model->vertPos(iface, nthvert);
+		vec4 pos_homogeneous = vec4(pos[0], pos[1], pos[2], 1.0);
+		vec4 gl_Position = view2Projection * world2View * pos_homogeneous;
+		//透视除法变成[-1,1]
+		vec4 NDC = vec4(gl_Position[0] / gl_Position[3], gl_Position[1] / gl_Position[3], gl_Position[2] / gl_Position[3], gl_Position[3]);
+		vec4 viewPort = ndc2ViewPort * NDC;
+		viewPortZ[nthvert] = viewPort[2];
+		return vec3(viewPort[0], viewPort[1], viewPort[2]);
+	}
+	virtual bool fragment(Vec3f bar, TGAColor& color)//AABB盒子中在三角形内部的每个像素调用一次fragment
+	{
+		float interpolationZ = bar[0] * viewPortZ[0] + bar[1] * viewPortZ[1] + bar[2] * viewPortZ[2];
+		//从[-1,1] -> [0,1] 左手坐标系，越远越白
+		interpolationZ = (interpolationZ + 1.0) * 0.5;
+		float zColor = interpolationZ * 255.0;
+		color = TGAColor(zColor, zColor, zColor, 255);
 		return false;
 	}
 };
@@ -219,12 +258,15 @@ int main(int argc, char** argv)
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
-		model = new Model("obj/african_head/african_head.obj");
-		//model = new Model("obj/diablo3_pose/diablo3_pose.obj");
+		//model = new Model("obj/african_head/african_head.obj");
+		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 		//model = new Model("obj/test.obj");
 
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
 	TGAImage image(width, height, TGAImage::RGB); //纯黑的100 * 100图
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			image.set(i, j, white);
 	
 	//纹理存深度贴图方式，far平面过远时可能会引发z-Fight，TODO压缩到4个通道
 	TGAImage zBuffer(width, height, TGAImage::RGB);
@@ -238,13 +280,47 @@ int main(int argc, char** argv)
 	for (int i = 0; i < width * height; i++)
 		zBufferFloat[i] = std::numeric_limits<float>::max();//初始zBuffer应该是无限大的值
 
+	//计算Shadowmap
+	{
+		TGAImage shadowmap(width, height, TGAImage::RGB);
+		//使用float数组存储shadowmap计算过程中的zBuffer，取较近的记录在shadowmap上
+		shadowmapZBuffer = new float[width * height];
+		for (int i = 0; i < width * height; i++)
+			shadowmapZBuffer[i] = std::numeric_limits<float>::max();
+
+		//得到算shadowmap的转换矩阵
+		World2View(light_dir, lookAtPos, Vec3f(0, 1, 0));//用光源位置来代替摄像机位置
+		OrthoProjection(cameraWidth, cameraHeight, cameraNearPlane, cameraFarPlane);
+		NDC2ViewPort(width, height);
+
+		//画一遍场景，只为得到shadowmap
+		ShadowMapShader shadowmapShader;
+		for (int i = 0; i < model->nfaces(); i++)
+		{
+			//即顶点着色器返回的viewPortCoord，[3]表示一个三角形有3个顶点 vec3表示每个顶点的xyz坐标，xy是屏幕坐标[0,width],z是NDC坐标[-1,1]
+			vec3 screen_coords[3];
+			for (int j = 0; j < 3; j++)
+			{
+				screen_coords[j] = shadowmapShader.vertex(i, j);
+			}
+			//片元着色器，在每个AABB盒子里找每个像素
+			triangle(screen_coords, shadowmapShader, shadowmap, shadowmapZBuffer, width);
+		}
+		shadowmap.flip_vertically();
+		shadowmap.write_tga_file("shadowmap.tga");
+	}
+
+
+	//一个像素从世界坐标转换到光源空间的坐标，给正常的shader用
+	mat4 world2OrthoProjection_LightMat4 = view2Projection * world2View;
+	mat4 ndc2ViewPort_LightMat4 = ndc2ViewPort * world2OrthoProjection_LightMat4;//因为是正交摄像机，所以透视除法这一步骤不要了试下对不对
+
 	//算出our_gl中三个转换矩阵的值
 	World2View(cameraPos, lookAtPos, Vec3f(0, 1, 0));
 	OrthoProjection(cameraWidth, cameraHeight, cameraNearPlane, cameraFarPlane);
 	NDC2ViewPort(width, height);
 
-
-	PhongShader shader;
+	PhongShader shader(ndc2ViewPort_LightMat4);
 	for (int i = 0; i < model->nfaces(); i++)//遍历faces_容器，里面每个元素代表f中一行，即3个顶点UV法线索引集合
 	{
 		vec3 screen_coords[3];//[3]表示一个三角形有3个顶点 vec3表示每个顶点的xyz坐标，xy是屏幕坐标[0,width],z是NDC坐标[-1,1]
@@ -261,5 +337,9 @@ int main(int argc, char** argv)
 	image.write_tga_file("output.tga");
 	zBuffer.flip_vertically();
 	zBuffer.write_tga_file("zBuffer.tga");
+
+	delete model;
+	delete[] zBufferFloat;
+	delete[] shadowmapZBuffer;
 	return 0;
 }
