@@ -119,30 +119,6 @@ struct PhongShader :public IShader
 		float shadow = shadowmapZBuffer[index] > lightSpaceCoords.z();
 
 #pragma region 切线计算，然后构建空间算法
-
-		//作者算法：效果也不对 法线算出来都接近(0,0,1)了
-		//Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
-		//Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
-		//mat3 A;
-		//A[0] = vec3(AB.x, AB.y, AB.z);
-		//A[1] = vec3(AC.x, AC.y, AC.z);
-		//A[2] = vec3(worldNormal.x, worldNormal.y, worldNormal.z);
-		//mat3 AI = A.inverse();//不知道是求逆还是求转置
-		//vec3 i = AI * vec3(varying_uv[1].x - varying_uv[0].x, varying_uv[2].x - varying_uv[0].x, 0);
-		//vec3 j = AI * vec3(varying_uv[1].y - varying_uv[0].y, varying_uv[2].y - varying_uv[0].y, 0);
-		//i.normalize();
-		//j.normalize();
-		//mat3 B;
-		//B[0][0] = i.x(); B[0][1] = j.x(); B[0][2] = worldNormal.x;
-		//B[1][0] = i.y(); B[1][1] = j.y(); B[1][2] = worldNormal.y;
-		//B[2][0] = i.z(); B[2][1] = j.z(); B[2][2] = worldNormal.z;
-		//mat3 C = B.transpose();
-		//TGAColor normalMap = model->SamplerNormalColor(uv);
-		//Vec3f tangentNormal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
-		//vec3 normalT = vec3(tangentNormal.x, tangentNormal.y, tangentNormal.z);
-		//vec3 normalW = (C * normalT).normalize();
-		//Vec3f normal = Vec3f(normalW.x(), normalW.y(), normalW.z());
-
 		//1、构建TBN坐标系，在世界空间表示TBN向量，然后按列排列即得到 TangentSpace -> WorldSpace 的矩阵
 		Vec3f AB = varying_WorldPos[1] - varying_WorldPos[0];
 		Vec3f AC = varying_WorldPos[2] - varying_WorldPos[0];
@@ -152,8 +128,8 @@ struct PhongShader :public IShader
 		float deltaV1 = varying_uv[2].v - varying_uv[0].v;
 
 		float determinant = 1.0 / (deltaU0 * deltaV1 - deltaV0 * deltaU1);//详见印象笔记切线空间
-		Vec3f worldSpaceT = determinant * (deltaV1 * AB - deltaU1 * AC);
-		Vec3f worldSpaceB = determinant * (-deltaV0 * AB + deltaU0 * AC);
+		Vec3f worldSpaceT = determinant * (deltaV1 * AB - deltaV0 * AC);//这里顺序也出错了！！！
+		Vec3f worldSpaceB = determinant * (-deltaU1 * AB + deltaU0 * AC);
 
 		//Tangent和Binormal的归一化公式不知为何，详见印象笔记
 		worldSpaceT = worldSpaceT - (worldSpaceT * worldNormal) * worldNormal;
@@ -174,17 +150,18 @@ struct PhongShader :public IShader
 		TGAColor normalMap = model->SamplerNormalColor(uv);
 		//解析采样到的normalMap贴图，这张是切线空间坐标表示的
 		//Unity中的UnpackNormal函数是把[0,1]变成[-1,1]，这里多一步从[0,255]变成[0,1]
-		//vec3 tangentNormal = vec3(normalMap.r / 255.0, normalMap.g / 255.0, normalMap.b / 255.0); 
-		//tangentNormal = tangentNormal * 2.0 - 1.0;
+		//切线空间算的是对的！！！！错误出在这，TGAColor的构造函数顺序是b g r，要颠倒一下！！！
+		vec3 tangentNormal = vec3((float)normalMap.raw[2] / 255.0, (float)normalMap.raw[1] / 255.0, (float)normalMap.raw[0] / 255.0);
+		tangentNormal = tangentNormal * 2.0 - 1.0;
 		////tangentNormal.normalize();
-		//vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
-		//Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
-		//normal.normalize();
+		vec3 convertToWorldNormal = tangent2World * tangentNormal;//convertToWorldNormal是把normalMap转换到世界空间的法线，与上面的worldNormal顶点法线不同，上面的worldNormal一般在顶点着色器计算，然后插值矩阵到片元
+		Vec3f normal = Vec3f(convertToWorldNormal[0], convertToWorldNormal[1], convertToWorldNormal[2]);
+		normal.normalize();
 #pragma endregion
 
 		//解析采样到的normalMap贴图，这张是世界坐标表示的（非切线空间）
-		Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
-		normal = normal.normalize();
+		//Vec3f normal = Vec3f((normalMap.r / 255.0) * 2 - 1, (normalMap.g / 255.0) * 2 - 1, (normalMap.b / 255.0) * 2 - 1);//[0,255]->[-1,1]
+		//normal = normal.normalize();
 
 		//世界空间worldNormal * worldLightDir
 		float a0 = light_dir[0];
@@ -214,7 +191,7 @@ struct PhongShader :public IShader
 
 		Vec3f ambient = Vec3f(5.0, 5.0, 5.0);
 		Vec3f result = ambient + diffuse;// +specular;
-		result = result * shadow;
+		//result = result * shadow;
 		color = TGAColor(result[0], result[1], result[2], albedo.a);
 		return false;
 	}
@@ -258,8 +235,8 @@ int main(int argc, char** argv)
 	if (2 == argc)
 		model = new Model(argv[1]);
 	else
-		//model = new Model("obj/african_head/african_head.obj");
-		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
+		model = new Model("obj/african_head/african_head.obj");
+		//model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 		//model = new Model("obj/test.obj");
 
 	//通过画线可知，这是右手坐标系，从左下开始的（其实从左上开始，被下面flip_vertically改成了左下）
